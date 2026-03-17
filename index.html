@@ -1018,11 +1018,13 @@
                 const statusEl = document.getElementById('ble-scanning-status');
                 statusEl.innerHTML = '<span class="ble-scanning">Generating tones from simulated BLE signals...</span>';
                 
-                // Generate simulated RSSI values for demonstration
+                // Simulated RSSI parameters for demonstration
+                // Base RSSI: -60 dBm represents a typical mid-range BLE signal
+                // Variation: ±20 dBm sinusoidal wave + ±5 dBm random noise simulates walking motion
+                // Update rate: 200ms (5Hz) matches typical BLE advertisement intervals
                 this.simulationInterval = setInterval(() => {
                     if (!this.isScanning) return;
                     
-                    // Simulate RSSI changes (-80 to -40 dBm range, with some movement)
                     const baseRssi = -60;
                     const variation = Math.sin(Date.now() / 1000) * 20 + (Math.random() - 0.5) * 10;
                     const rssi = Math.round(baseRssi + variation);
@@ -1096,15 +1098,18 @@
                 
                 // Map RSSI to musical parameters (matching woods.scd logic)
                 // Close = high RSSI = high pitch, Far = low RSSI = low pitch
-                const degree = (1 - normRssi) * 12; // 0-12 scale degrees
+                // Scale degree range 0-12 spans ~2 octaves of the pentatonic scale
+                const degree = (1 - normRssi) * 12;
                 const freq = this.bleTones.degreeToFreq(degree);
                 
-                // Amplitude based on signal strength and delta
+                // Amplitude calculation matching woods.scd: amp = normRssi^1.2 * (delta * 10)
+                // - normRssi^1.2: slight curve so closer signals are louder
+                // - delta * 10: scale factor makes signal changes more audible
                 const amp = Math.min(1.0, Math.max(0.1, 
                     Math.pow(normRssi, 1.2) * (delta * 10)
                 ));
                 
-                // Random pan for spatial distribution
+                // Random pan for spatial distribution (-0.7 to 0.7, matching woods.scd rrand)
                 const pan = (Math.random() - 0.5) * 1.4;
                 
                 // Play the note

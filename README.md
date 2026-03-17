@@ -10,14 +10,36 @@ A generative sound experience that creates beautiful, organic music through inte
 
 1. Open `index.html` in Chrome (or any modern browser)
 2. Click **"Begin Experience"** to enable audio
-3. **Move your mouse** or **touch the screen** to create sounds
-4. The faster you move, the louder the sound
-5. Position on screen affects pitch (top = high, bottom = low)
-6. Choose different instruments: Wood Chimes, Deep Log, Hollow Reed, or Kalimba
+3. Choose your input mode:
+   - **🖱️ Mouse/Touch**: Move your mouse or touch the screen to create sounds
+   - **📡 BLE Devices**: Use nearby Bluetooth devices to generate sounds
+
+### Mouse/Touch Mode
+
+- **Move your mouse** or **touch the screen** to create sounds
+- The faster you move, the louder the sound
+- Position on screen affects pitch (top = high, bottom = low)
+- Choose different instruments: Wood Chimes, Deep Log, Hollow Reed, or Kalimba
+
+### BLE Mode (Chrome with Web Bluetooth)
+
+The web experience can now use **real Bluetooth Low Energy (BLE) data** to generate tones, just like the original project!
+
+1. Switch to "📡 BLE Devices" mode
+2. Click "Start BLE Scan" to scan for nearby BLE devices
+3. As BLE devices move or their signal strength changes, sounds are generated
+4. Closer devices produce higher pitches
+5. Signal strength changes affect amplitude
+
+**Requirements for BLE Mode:**
+- Chrome browser (version 79+) with Web Bluetooth support
+- For best experience, enable `chrome://flags/#enable-experimental-web-platform-features`
+- HTTPS connection (or localhost) is required for Web Bluetooth
 
 ### Features
 
 - 🎹 **4 Unique Instruments** - Each with distinct wooden/organic character
+- 📡 **BLE Integration** - Generate music from Bluetooth device signals
 - 🎨 **Real-time Visualization** - Particle effects respond to your movements
 - 📱 **Touch Support** - Works great on mobile devices
 - 🔊 **Spatial Audio** - Left/right panning based on horizontal position
@@ -25,9 +47,9 @@ A generative sound experience that creates beautiful, organic music through inte
 
 ---
 
-## 🔬 Original BLE-to-Sound System
+## 🔬 Original BLE-to-Sound System (Python + SuperCollider)
 
-The original version uses Bluetooth Low Energy signals to generate music:
+For the full original experience with more control, use the Python/SuperCollider setup:
 
 ### Requirements
 - Python 3 with `bleak` and `python-osc` packages

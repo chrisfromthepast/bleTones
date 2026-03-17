@@ -1001,9 +1001,9 @@
                 
                 // Create multiple simulated devices with different movement patterns
                 this.demoDevices = [
-                    { id: 'demo-walking', name: 'Walking Person', baseRssi: -60, variation: 20, speed: 0.8 },
-                    { id: 'demo-stationary', name: 'Stationary Device', baseRssi: -45, variation: 5, speed: 0.2 },
-                    { id: 'demo-approaching', name: 'Approaching Object', baseRssi: -80, variation: 30, speed: 1.2 }
+                    { id: 'demo-walking', name: 'Walking Person', baseRssi: -60, variation: 20, oscillationSpeed: 0.8 },
+                    { id: 'demo-stationary', name: 'Stationary Device', baseRssi: -45, variation: 5, oscillationSpeed: 0.2 },
+                    { id: 'demo-approaching', name: 'Approaching Object', baseRssi: -80, variation: 30, oscillationSpeed: 1.2 }
                 ];
                 
                 this.simulationInterval = setInterval(() => {
@@ -1012,7 +1012,7 @@
                     this.demoDevices.forEach(device => {
                         // Generate realistic RSSI patterns
                         const time = Date.now() / 1000;
-                        const variation = Math.sin(time * device.speed) * device.variation 
+                        const variation = Math.sin(time * device.oscillationSpeed) * device.variation 
                                         + (Math.random() - 0.5) * 8;
                         const rssi = Math.round(device.baseRssi + variation);
                         

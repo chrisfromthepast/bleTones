@@ -1777,7 +1777,7 @@
 
         // Input mode buttons (mouse/touch vs BLE)
         inputButtons.forEach(btn => {
-            btn.addEventListener('click', () => {
+            btn.addEventListener('click', async () => {
                 if (btn.disabled) return;
                 
                 inputButtons.forEach(b => b.classList.remove('active'));
@@ -1794,7 +1794,7 @@
                 } else {
                     bleStatus.classList.add('hidden');
                     if (bleScanner && bleScanner.isScanning) {
-                        bleScanner.stopScan();
+                        await bleScanner.stopScan();
                     }
                     instructionsEl.innerHTML = `
                         <p><strong>Move your mouse</strong> or <strong>touch the screen</strong> to create sounds</p>
@@ -1812,10 +1812,10 @@
             }
             
             if (bleScanner.isScanning && !bleScanner.isDemoMode) {
-                bleScanner.stopScan();
+                await bleScanner.stopScan();
             } else {
                 if (bleScanner.isScanning) {
-                    bleScanner.stopScan();
+                    await bleScanner.stopScan();
                 }
                 await bleScanner.startScan();
             }
@@ -1829,10 +1829,10 @@
             }
             
             if (bleScanner.isScanning && bleScanner.isDemoMode) {
-                bleScanner.stopScan();
+                await bleScanner.stopScan();
             } else {
                 if (bleScanner.isScanning) {
-                    bleScanner.stopScan();
+                    await bleScanner.stopScan();
                 }
                 await bleScanner.startDemoMode();
             }

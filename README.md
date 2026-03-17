@@ -21,25 +21,48 @@ A generative sound experience that creates beautiful, organic music through inte
 - Position on screen affects pitch (top = high, bottom = low)
 - Choose different instruments: Wood Chimes, Deep Log, Hollow Reed, or Kalimba
 
-### BLE Mode (Chrome with Web Bluetooth)
+### BLE Mode
 
-The web experience can now use **real Bluetooth Low Energy (BLE) data** to generate tones, just like the original project!
+The web experience can use **Bluetooth Low Energy (BLE) data** to generate tones, just like the original project!
+
+#### 🎭 Demo Mode (Recommended for Most Users)
+
+Demo Mode generates **simulated BLE signals** so you can experience the sound generation without any Bluetooth hardware or setup:
 
 1. Switch to "📡 BLE Devices" mode
-2. Click "Start BLE Scan" to scan for nearby BLE devices
-3. As BLE devices move or their signal strength changes, sounds are generated
-4. Closer devices produce higher pitches
-5. Signal strength changes affect amplitude
+2. Click **"🎭 Demo Mode"**
+3. Enjoy the generative music from simulated BLE devices!
 
-**Requirements for BLE Mode:**
+This is perfect for:
+- Testing the experience on any browser
+- Using the app without Bluetooth hardware
+- Demonstrating the concept to others
+
+#### 🔍 Real BLE Mode
+
+For actual Bluetooth device scanning:
+
+**Option A: Passive Scanning (Experimental)**
+- Enable `chrome://flags/#enable-experimental-web-platform-features` in Chrome
+- This allows passive scanning without pairing
+- Best experience: detects all nearby BLE devices automatically
+
+**Option B: Device Pairing (Standard)**
+- Without the experimental flag, Chrome requires pairing with a specific device
+- Click "🔍 Real BLE" and select a device from the picker
+- Limited to monitoring only the paired device
+
+> ⚠️ **Note on Chrome BLE Limitations**: The Web Bluetooth API does not support passive RSSI scanning without user interaction for privacy reasons. For unrestricted BLE scanning, use the Python bridge with SuperCollider (see below).
+
+**Requirements for Real BLE Mode:**
 - Chrome browser (version 79+) with Web Bluetooth support
-- For best experience, enable `chrome://flags/#enable-experimental-web-platform-features`
 - HTTPS connection (or localhost) is required for Web Bluetooth
 
 ### Features
 
 - 🎹 **4 Unique Instruments** - Each with distinct wooden/organic character
 - 📡 **BLE Integration** - Generate music from Bluetooth device signals
+- 🎭 **Demo Mode** - Experience BLE sound generation without Bluetooth hardware
 - 🎨 **Real-time Visualization** - Particle effects respond to your movements
 - 📱 **Touch Support** - Works great on mobile devices
 - 🔊 **Spatial Audio** - Left/right panning based on horizontal position

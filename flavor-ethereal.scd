@@ -8,7 +8,7 @@
 	rootNote: 60,               // High range (C4)
 	scale: Scale.lydian,        // Lydian mode for dreamy, floating feel
 	minRSSI: 0.15,
-	movementThreshold: 0.025,   // Very sensitive
+	movementThreshold: 0.025,   // Lower threshold for higher sensitivity
 
 	// DEVICE ROLES
 	deviceMap: (

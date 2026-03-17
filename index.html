@@ -1166,14 +1166,29 @@
                     this.updateVolume(flavorConfig.masterVol);
                     this.updateMovementThreshold(flavorConfig.movementThreshold);
                     
-                    // Update UI controls
-                    document.getElementById('volume-slider').value = Math.round(flavorConfig.masterVol * 100);
-                    document.getElementById('volume-value').textContent = Math.round(flavorConfig.masterVol * 100) + '%';
-                    document.getElementById('rootnote-slider').value = flavorConfig.rootNote;
+                    // Update UI controls (only if DOM elements exist)
+                    const volumeSlider = document.getElementById('volume-slider');
+                    const volumeValue = document.getElementById('volume-value');
+                    const rootnoteSlider = document.getElementById('rootnote-slider');
+                    const scaleSelect = document.getElementById('scale-select');
+                    const thresholdSlider = document.getElementById('threshold-slider');
+                    const thresholdValue = document.getElementById('threshold-value');
+                    
+                    if (volumeSlider && volumeValue) {
+                        volumeSlider.value = Math.round(flavorConfig.masterVol * 100);
+                        volumeValue.textContent = Math.round(flavorConfig.masterVol * 100) + '%';
+                    }
+                    if (rootnoteSlider) {
+                        rootnoteSlider.value = flavorConfig.rootNote;
+                    }
                     this.updateRootNoteDisplay(flavorConfig.rootNote);
-                    document.getElementById('scale-select').value = flavorConfig.scale;
-                    document.getElementById('threshold-slider').value = flavorConfig.movementThreshold;
-                    document.getElementById('threshold-value').textContent = flavorConfig.movementThreshold.toFixed(1);
+                    if (scaleSelect) {
+                        scaleSelect.value = flavorConfig.scale;
+                    }
+                    if (thresholdSlider && thresholdValue) {
+                        thresholdSlider.value = flavorConfig.movementThreshold;
+                        thresholdValue.textContent = flavorConfig.movementThreshold.toFixed(1);
+                    }
                 }
             }
             
@@ -1181,7 +1196,10 @@
                 const noteNames = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
                 const octave = Math.floor(midiNote / 12) - 1;
                 const noteName = noteNames[midiNote % 12];
-                document.getElementById('rootnote-value').textContent = `${midiNote} (${noteName}${octave})`;
+                const valueEl = document.getElementById('rootnote-value');
+                if (valueEl) {
+                    valueEl.textContent = `${midiNote} (${noteName}${octave})`;
+                }
             }
         }
 
@@ -1825,33 +1843,49 @@
             if (saved) {
                 try {
                     const settings = JSON.parse(saved);
+                    
+                    // Validate and apply volume (0-100)
                     if (settings.volume !== undefined) {
-                        volumeSlider.value = settings.volume;
-                        volumeValue.textContent = settings.volume + '%';
-                        bleTones.updateVolume(settings.volume / 100);
+                        const volume = Math.max(0, Math.min(100, parseInt(settings.volume)));
+                        volumeSlider.value = volume;
+                        volumeValue.textContent = volume + '%';
+                        bleTones.updateVolume(volume / 100);
                     }
+                    
+                    // Validate and apply root note (24-72)
                     if (settings.rootNote !== undefined) {
-                        rootNoteSlider.value = settings.rootNote;
-                        bleTones.updateRootNote(settings.rootNote);
-                        bleTones.updateRootNoteDisplay(settings.rootNote);
+                        const rootNote = Math.max(24, Math.min(72, parseInt(settings.rootNote)));
+                        rootNoteSlider.value = rootNote;
+                        bleTones.updateRootNote(rootNote);
+                        bleTones.updateRootNoteDisplay(rootNote);
                     }
+                    
+                    // Validate and apply threshold (1-20)
                     if (settings.threshold !== undefined) {
-                        thresholdSlider.value = settings.threshold;
-                        thresholdValue.textContent = settings.threshold;
-                        bleTones.updateMovementThreshold(settings.threshold);
+                        const threshold = Math.max(1, Math.min(20, parseFloat(settings.threshold)));
+                        thresholdSlider.value = threshold;
+                        thresholdValue.textContent = threshold.toFixed(1);
+                        bleTones.updateMovementThreshold(threshold);
                     }
-                    if (settings.scale !== undefined) {
+                    
+                    // Validate and apply scale
+                    if (settings.scale !== undefined && bleTones.scales[settings.scale]) {
                         scaleSelect.value = settings.scale;
                         bleTones.updateScale(settings.scale);
                     }
+                    
+                    // Validate and apply flavor
                     if (settings.flavor !== undefined) {
-                        flavorButtons.forEach(btn => {
-                            if (btn.dataset.flavor === settings.flavor) {
-                                flavorButtons.forEach(b => b.classList.remove('active'));
-                                btn.classList.add('active');
-                                bleTones.currentFlavor = settings.flavor;
-                            }
-                        });
+                        const validFlavors = ['melodic', 'ambient', 'percussive', 'ethereal'];
+                        if (validFlavors.includes(settings.flavor)) {
+                            flavorButtons.forEach(btn => {
+                                if (btn.dataset.flavor === settings.flavor) {
+                                    flavorButtons.forEach(b => b.classList.remove('active'));
+                                    btn.classList.add('active');
+                                    bleTones.currentFlavor = settings.flavor;
+                                }
+                            });
+                        }
                     }
                 } catch (e) {
                     console.error('Failed to load settings:', e);

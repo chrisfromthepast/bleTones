@@ -1396,7 +1396,7 @@
                 if (this.isElectron) {
                     try {
                         const result = await window.electronBLE.startScan();
-                        if (result.success) {
+                        if (result && result.success) {
                             this.isScanning = true;
                             this.isDemoMode = false;
                             statusEl.innerHTML = '<span class="ble-scanning">🔍 Scanning for BLE devices...</span>';
@@ -1412,7 +1412,7 @@
                     } catch (error) {
                         console.error('Electron BLE scan error:', error);
                         errorEl.textContent = `Error: ${error.message}`;
-                        if (error.message.includes('poweredOn')) {
+                        if (error.message && error.message.includes('poweredOn')) {
                             infoEl.innerHTML = '⚠️ Please turn on Bluetooth and try again, or use <strong>Demo Mode</strong>.';
                         }
                         return false;

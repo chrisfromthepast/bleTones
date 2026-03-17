@@ -1,14 +1,17 @@
 (
+/* --- FLAVOR 1: MELODIC --- */
+/* Balanced, musical tones with moderate sustain and wooden character */
+
 /* --- 1. USER CONFIGURATION --- */
 ~cfg = (
-	masterVol: 0.4,             // Overall output level (0.0 to 1.0)
-	rootNote: 32,               // Deep bass foundation
+	masterVol: 0.5,             // Overall output level (0.0 to 1.0)
+	rootNote: 48,               // Middle range (C3)
 	scale: Scale.minorPentatonic,
 	minRSSI: 0.15,
 	movementThreshold: 0.04,    // RSSI must change by this much to "strike"
 
 	// DEVICE ROLES: Assign types to MACs
-	// Types: \logDrum (Deep), \woodBlock (High), \kalimba (Metallic Wood), \claves (Sharp)
+	// Types: \logDrum (Deep), \claves (Sharp), \kalimba (Metallic Wood)
 	deviceMap: (
 		'00:1a:7d:da:71:13': (type: \logDrum,  octave: 0),
 		'a4:c1:38:8d:12:44': (type: \claves,   octave: 2),

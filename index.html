@@ -226,7 +226,7 @@
 
         .ble-status {
             position: fixed;
-            top: 20px;
+            top: 80px;
             left: 20px;
             background: rgba(26, 26, 46, 0.8);
             padding: 15px 20px;
@@ -359,9 +359,250 @@
                 padding: 10px 20px;
             }
         }
+
+        /* Settings popup styles */
+        .settings-btn {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            background: rgba(232, 213, 183, 0.2);
+            border: 1px solid rgba(232, 213, 183, 0.3);
+            padding: 12px 16px;
+            font-size: 1.2rem;
+            color: #e8d5b7;
+            cursor: pointer;
+            border-radius: 50%;
+            transition: all 0.3s ease;
+            z-index: 100;
+            width: 50px;
+            height: 50px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .settings-btn:hover {
+            background: rgba(232, 213, 183, 0.3);
+            transform: scale(1.1);
+        }
+
+        .settings-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.7);
+            backdrop-filter: blur(5px);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .settings-overlay.active {
+            display: flex;
+        }
+
+        .settings-popup {
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            border: 2px solid rgba(232, 213, 183, 0.3);
+            border-radius: 20px;
+            padding: 30px;
+            max-width: 500px;
+            width: 90%;
+            max-height: 90vh;
+            overflow-y: auto;
+            box-shadow: 0 10px 50px rgba(0, 0, 0, 0.5);
+        }
+
+        .settings-popup h2 {
+            color: #e8d5b7;
+            margin-bottom: 25px;
+            font-weight: 300;
+            letter-spacing: 0.2em;
+            text-align: center;
+            font-size: 1.8rem;
+        }
+
+        .setting-group {
+            margin-bottom: 25px;
+        }
+
+        .setting-group label {
+            display: block;
+            color: #8e9aaf;
+            font-size: 0.9rem;
+            margin-bottom: 8px;
+            letter-spacing: 0.05em;
+            text-transform: uppercase;
+        }
+
+        .setting-group input[type="range"] {
+            width: 100%;
+            height: 6px;
+            border-radius: 3px;
+            background: rgba(232, 213, 183, 0.2);
+            outline: none;
+            -webkit-appearance: none;
+        }
+
+        .setting-group input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: #e8d5b7;
+            cursor: pointer;
+            box-shadow: 0 0 10px rgba(232, 213, 183, 0.5);
+        }
+
+        .setting-group input[type="range"]::-moz-range-thumb {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: #e8d5b7;
+            cursor: pointer;
+            border: none;
+            box-shadow: 0 0 10px rgba(232, 213, 183, 0.5);
+        }
+
+        .setting-group select {
+            width: 100%;
+            background: rgba(26, 26, 46, 0.8);
+            border: 1px solid rgba(232, 213, 183, 0.3);
+            color: #e8d5b7;
+            padding: 10px;
+            border-radius: 8px;
+            font-size: 1rem;
+            cursor: pointer;
+            outline: none;
+        }
+
+        .setting-group select:hover {
+            border-color: rgba(232, 213, 183, 0.5);
+        }
+
+        .setting-value {
+            display: inline-block;
+            color: #e8d5b7;
+            font-family: monospace;
+            margin-left: 10px;
+            font-size: 1rem;
+        }
+
+        .settings-close {
+            background: rgba(232, 213, 183, 0.2);
+            border: 1px solid rgba(232, 213, 183, 0.3);
+            padding: 12px 30px;
+            font-size: 1rem;
+            color: #e8d5b7;
+            cursor: pointer;
+            border-radius: 25px;
+            transition: all 0.3s ease;
+            width: 100%;
+            margin-top: 20px;
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+        }
+
+        .settings-close:hover {
+            background: rgba(232, 213, 183, 0.3);
+            transform: scale(1.02);
+        }
+
+        .flavor-group {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-top: 10px;
+        }
+
+        .flavor-btn {
+            background: rgba(232, 213, 183, 0.1);
+            border: 1px solid rgba(232, 213, 183, 0.3);
+            padding: 12px;
+            font-size: 0.85rem;
+            color: #e8d5b7;
+            cursor: pointer;
+            border-radius: 10px;
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .flavor-btn:hover {
+            background: rgba(232, 213, 183, 0.2);
+        }
+
+        .flavor-btn.active {
+            background: rgba(232, 213, 183, 0.3);
+            border-color: #e8d5b7;
+            box-shadow: 0 0 15px rgba(232, 213, 183, 0.3);
+        }
     </style>
 </head>
 <body>
+    <!-- Settings Button -->
+    <button class="settings-btn" id="settings-btn" title="Settings">⚙️</button>
+
+    <!-- Settings Popup -->
+    <div class="settings-overlay" id="settings-overlay">
+        <div class="settings-popup">
+            <h2>⚙️ Settings</h2>
+            
+            <div class="setting-group">
+                <label>
+                    Master Volume
+                    <span class="setting-value" id="volume-value">60%</span>
+                </label>
+                <input type="range" id="volume-slider" min="0" max="100" value="60">
+            </div>
+
+            <div class="setting-group">
+                <label>
+                    Root Note (MIDI)
+                    <span class="setting-value" id="rootnote-value">48 (C3)</span>
+                </label>
+                <input type="range" id="rootnote-slider" min="24" max="72" value="48">
+            </div>
+
+            <div class="setting-group">
+                <label>Movement Threshold</label>
+                <input type="range" id="threshold-slider" min="1" max="20" value="5" step="0.5">
+                <span class="setting-value" id="threshold-value">5.0</span>
+            </div>
+
+            <div class="setting-group">
+                <label>Scale</label>
+                <select id="scale-select">
+                    <option value="minorPentatonic" selected>Minor Pentatonic</option>
+                    <option value="majorPentatonic">Major Pentatonic</option>
+                    <option value="minor">Natural Minor</option>
+                    <option value="major">Major</option>
+                    <option value="dorian">Dorian</option>
+                    <option value="phrygian">Phrygian</option>
+                    <option value="lydian">Lydian</option>
+                    <option value="mixolydian">Mixolydian</option>
+                    <option value="chromatic">Chromatic</option>
+                </select>
+            </div>
+
+            <div class="setting-group">
+                <label>Sound Flavor</label>
+                <div class="flavor-group">
+                    <button class="flavor-btn active" data-flavor="melodic">🎵 Melodic</button>
+                    <button class="flavor-btn" data-flavor="ambient">🌌 Ambient</button>
+                    <button class="flavor-btn" data-flavor="percussive">🥁 Percussive</button>
+                    <button class="flavor-btn" data-flavor="ethereal">✨ Ethereal</button>
+                </div>
+            </div>
+
+            <button class="settings-close" id="settings-close">Close</button>
+        </div>
+    </div>
+
     <div class="canvas-container">
         <canvas id="visualizer"></canvas>
     </div>
@@ -451,6 +692,21 @@
                 };
                 
                 this.lastStrikeTime = 0;
+                
+                // Musical scales
+                this.scales = {
+                    minorPentatonic: [0, 2, 3, 7, 9],
+                    majorPentatonic: [0, 2, 4, 7, 9],
+                    minor: [0, 2, 3, 5, 7, 8, 10],
+                    major: [0, 2, 4, 5, 7, 9, 11],
+                    dorian: [0, 2, 3, 5, 7, 9, 10],
+                    phrygian: [0, 1, 3, 5, 7, 8, 10],
+                    lydian: [0, 2, 4, 6, 7, 9, 11],
+                    mixolydian: [0, 2, 4, 5, 7, 9, 10],
+                    chromatic: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]
+                };
+                
+                this.currentFlavor = 'melodic';
             }
 
             async init() {
@@ -525,7 +781,7 @@
                 const noiseBuffer = ctx.createBuffer(1, ctx.sampleRate * 0.01, ctx.sampleRate);
                 const noiseData = noiseBuffer.getChannelData(0);
                 for (let i = 0; i < noiseData.length; i++) {
-                    noiseData[i] = (Math.random() * 2 - 1) * 0.1;
+                    noiseData[i] = (Math.random() * 2 - 1) * 0.5;
                 }
                 
                 const noise = ctx.createBufferSource();
@@ -654,7 +910,7 @@
                 const noiseBuffer = ctx.createBuffer(1, ctx.sampleRate * 0.005, ctx.sampleRate);
                 const noiseData = noiseBuffer.getChannelData(0);
                 for (let i = 0; i < noiseData.length; i++) {
-                    noiseData[i] = (Math.random() * 2 - 1) * 0.03;
+                    noiseData[i] = (Math.random() * 2 - 1) * 0.2;
                 }
                 
                 const noise = ctx.createBufferSource();
@@ -850,6 +1106,82 @@
 
             setMode(mode) {
                 this.currentMode = mode;
+            }
+            
+            updateVolume(value) {
+                this.config.masterVol = value;
+                if (this.masterGain) {
+                    this.masterGain.gain.value = value;
+                }
+            }
+            
+            updateRootNote(value) {
+                this.config.rootNote = value;
+            }
+            
+            updateScale(scaleName) {
+                if (this.scales[scaleName]) {
+                    this.config.scale = this.scales[scaleName];
+                }
+            }
+            
+            updateMovementThreshold(value) {
+                this.config.movementThreshold = value;
+            }
+            
+            setFlavor(flavor) {
+                this.currentFlavor = flavor;
+                // Update parameters based on flavor
+                const flavorConfigs = {
+                    melodic: {
+                        rootNote: 48,
+                        scale: 'minorPentatonic',
+                        masterVol: 0.5,
+                        movementThreshold: 5
+                    },
+                    ambient: {
+                        rootNote: 36,
+                        scale: 'majorPentatonic',
+                        masterVol: 0.35,
+                        movementThreshold: 3
+                    },
+                    percussive: {
+                        rootNote: 48,
+                        scale: 'minorPentatonic',
+                        masterVol: 0.6,
+                        movementThreshold: 7
+                    },
+                    ethereal: {
+                        rootNote: 60,
+                        scale: 'lydian',
+                        masterVol: 0.3,
+                        movementThreshold: 3
+                    }
+                };
+                
+                const flavorConfig = flavorConfigs[flavor];
+                if (flavorConfig) {
+                    this.updateRootNote(flavorConfig.rootNote);
+                    this.updateScale(flavorConfig.scale);
+                    this.updateVolume(flavorConfig.masterVol);
+                    this.updateMovementThreshold(flavorConfig.movementThreshold);
+                    
+                    // Update UI controls
+                    document.getElementById('volume-slider').value = Math.round(flavorConfig.masterVol * 100);
+                    document.getElementById('volume-value').textContent = Math.round(flavorConfig.masterVol * 100) + '%';
+                    document.getElementById('rootnote-slider').value = flavorConfig.rootNote;
+                    this.updateRootNoteDisplay(flavorConfig.rootNote);
+                    document.getElementById('scale-select').value = flavorConfig.scale;
+                    document.getElementById('threshold-slider').value = flavorConfig.movementThreshold;
+                    document.getElementById('threshold-value').textContent = flavorConfig.movementThreshold.toFixed(1);
+                }
+            }
+            
+            updateRootNoteDisplay(midiNote) {
+                const noteNames = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+                const octave = Math.floor(midiNote / 12) - 1;
+                const noteName = noteNames[midiNote % 12];
+                document.getElementById('rootnote-value').textContent = `${midiNote} (${noteName}${octave})`;
             }
         }
 
@@ -1470,6 +1802,135 @@
             const touch = e.touches[0];
             bleTones.lastPosition = { x: touch.clientX, y: touch.clientY };
             bleTones.lastTime = performance.now();
+        });
+
+        // ==================
+        // Settings Controls
+        // ==================
+        const settingsBtn = document.getElementById('settings-btn');
+        const settingsOverlay = document.getElementById('settings-overlay');
+        const settingsClose = document.getElementById('settings-close');
+        const volumeSlider = document.getElementById('volume-slider');
+        const volumeValue = document.getElementById('volume-value');
+        const rootNoteSlider = document.getElementById('rootnote-slider');
+        const rootNoteValue = document.getElementById('rootnote-value');
+        const thresholdSlider = document.getElementById('threshold-slider');
+        const thresholdValue = document.getElementById('threshold-value');
+        const scaleSelect = document.getElementById('scale-select');
+        const flavorButtons = document.querySelectorAll('.flavor-btn');
+
+        // Load saved settings from localStorage
+        function loadSettings() {
+            const saved = localStorage.getItem('bleTonesSettings');
+            if (saved) {
+                try {
+                    const settings = JSON.parse(saved);
+                    if (settings.volume !== undefined) {
+                        volumeSlider.value = settings.volume;
+                        volumeValue.textContent = settings.volume + '%';
+                        bleTones.updateVolume(settings.volume / 100);
+                    }
+                    if (settings.rootNote !== undefined) {
+                        rootNoteSlider.value = settings.rootNote;
+                        bleTones.updateRootNote(settings.rootNote);
+                        bleTones.updateRootNoteDisplay(settings.rootNote);
+                    }
+                    if (settings.threshold !== undefined) {
+                        thresholdSlider.value = settings.threshold;
+                        thresholdValue.textContent = settings.threshold;
+                        bleTones.updateMovementThreshold(settings.threshold);
+                    }
+                    if (settings.scale !== undefined) {
+                        scaleSelect.value = settings.scale;
+                        bleTones.updateScale(settings.scale);
+                    }
+                    if (settings.flavor !== undefined) {
+                        flavorButtons.forEach(btn => {
+                            if (btn.dataset.flavor === settings.flavor) {
+                                flavorButtons.forEach(b => b.classList.remove('active'));
+                                btn.classList.add('active');
+                                bleTones.currentFlavor = settings.flavor;
+                            }
+                        });
+                    }
+                } catch (e) {
+                    console.error('Failed to load settings:', e);
+                }
+            }
+        }
+
+        // Save settings to localStorage
+        function saveSettings() {
+            const settings = {
+                volume: parseInt(volumeSlider.value),
+                rootNote: parseInt(rootNoteSlider.value),
+                threshold: parseFloat(thresholdSlider.value),
+                scale: scaleSelect.value,
+                flavor: bleTones.currentFlavor
+            };
+            localStorage.setItem('bleTonesSettings', JSON.stringify(settings));
+        }
+
+        // Open settings
+        settingsBtn.addEventListener('click', () => {
+            settingsOverlay.classList.add('active');
+        });
+
+        // Close settings
+        settingsClose.addEventListener('click', () => {
+            settingsOverlay.classList.remove('active');
+        });
+
+        // Close on overlay click
+        settingsOverlay.addEventListener('click', (e) => {
+            if (e.target === settingsOverlay) {
+                settingsOverlay.classList.remove('active');
+            }
+        });
+
+        // Volume control
+        volumeSlider.addEventListener('input', (e) => {
+            const value = parseInt(e.target.value);
+            volumeValue.textContent = value + '%';
+            bleTones.updateVolume(value / 100);
+            saveSettings();
+        });
+
+        // Root note control
+        rootNoteSlider.addEventListener('input', (e) => {
+            const value = parseInt(e.target.value);
+            bleTones.updateRootNote(value);
+            bleTones.updateRootNoteDisplay(value);
+            saveSettings();
+        });
+
+        // Movement threshold control
+        thresholdSlider.addEventListener('input', (e) => {
+            const value = parseFloat(e.target.value);
+            thresholdValue.textContent = value.toFixed(1);
+            bleTones.updateMovementThreshold(value);
+            saveSettings();
+        });
+
+        // Scale selection
+        scaleSelect.addEventListener('change', (e) => {
+            bleTones.updateScale(e.target.value);
+            saveSettings();
+        });
+
+        // Flavor buttons
+        flavorButtons.forEach(btn => {
+            btn.addEventListener('click', () => {
+                flavorButtons.forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                bleTones.setFlavor(btn.dataset.flavor);
+                saveSettings();
+            });
+        });
+
+        // Initialize settings on page load
+        window.addEventListener('load', () => {
+            loadSettings();
         });
     </script>
 </body>

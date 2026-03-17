@@ -1174,9 +1174,10 @@
                     const thresholdSlider = document.getElementById('threshold-slider');
                     const thresholdValue = document.getElementById('threshold-value');
                     
+                    const volumePercent = Math.round(flavorConfig.masterVol * 100);
                     if (volumeSlider && volumeValue) {
-                        volumeSlider.value = Math.round(flavorConfig.masterVol * 100);
-                        volumeValue.textContent = Math.round(flavorConfig.masterVol * 100) + '%';
+                        volumeSlider.value = volumePercent;
+                        volumeValue.textContent = volumePercent + '%';
                     }
                     if (rootnoteSlider) {
                         rootnoteSlider.value = flavorConfig.rootNote;

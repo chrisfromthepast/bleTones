@@ -8,7 +8,7 @@
 	rootNote: 48,               // Mid range (C3)
 	scale: Scale.minorPentatonic,
 	minRSSI: 0.15,
-	movementThreshold: 0.05,    // Slightly higher threshold for cleaner, intentional triggering
+	movementThreshold: 0.05,    // Higher threshold for cleaner, intentional triggering
 
 	// DEVICE ROLES
 	deviceMap: (

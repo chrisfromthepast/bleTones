@@ -98,6 +98,52 @@ For actual Bluetooth device scanning in the browser:
 
 ---
 
+---
+
+## 🔧 Troubleshooting
+
+### "Not seeing a stream of Bluetooth devices in Chrome"
+
+This is a **known limitation** of Chrome's Web Bluetooth API. Here's what to do:
+
+1. **Use the Standalone Desktop App (Recommended)**
+   - Run `npm install` then `npm start`
+   - Or double-click `start.sh` (Mac/Linux) or `start.bat` (Windows)
+   - This provides unrestricted native BLE scanning
+
+2. **Verify Chrome Experimental Flag is Enabled**
+   - Open: `chrome://flags/#enable-experimental-web-platform-features`
+   - Set to "Enabled"
+   - **Restart Chrome completely** (close all Chrome windows)
+   - Open `index.html` and try again
+   - Open DevTools Console (F12) to see debugging logs
+
+3. **Check Browser Console for Errors**
+   - Open DevTools (F12) → Console tab
+   - Look for BLE-related errors
+   - You should see logs like "Starting passive BLE scan..." and "Advertisement received"
+   - If you see "requestLEScan is not a function", the experimental API isn't available
+
+4. **Try Demo Mode**
+   - Click "🎭 Demo Mode" to verify the audio system works
+   - This confirms the issue is with BLE, not the audio engine
+
+5. **Check System Bluetooth**
+   - Ensure Bluetooth is turned ON in your operating system
+   - Verify other BLE devices are nearby (phones, watches, headphones)
+   - Try the Python bridge (`python bridge.py`) to confirm devices are detectable
+
+### Known Chrome Limitations
+
+- **Privacy Restrictions**: Chrome's Web Bluetooth API intentionally limits passive scanning
+- **Experimental API**: `requestLEScan()` may not work in all Chrome versions
+- **HTTPS Required**: Web Bluetooth only works on HTTPS or localhost
+- **No Background Scanning**: Browser tabs must be active
+
+**Solution**: Use the standalone desktop app for reliable BLE scanning!
+
+---
+
 ## 🔬 Original BLE-to-Sound System (Python + SuperCollider)
 
 For the full original experience with more control, use the Python/SuperCollider setup:

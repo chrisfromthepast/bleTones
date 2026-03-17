@@ -1501,6 +1501,15 @@
             bleTones.lastPosition = { x: touch.clientX, y: touch.clientY };
             bleTones.lastTime = performance.now();
         });
+
+        // Update UI to show Electron mode
+        if (typeof window.electronBLE !== 'undefined') {
+            const subtitle = document.querySelector('.subtitle');
+            if (subtitle) {
+                subtitle.textContent = 'Standalone Desktop App • Full BLE Support';
+                subtitle.style.color = '#90ee90';
+            }
+        }
     </script>
 </body>
 </html>

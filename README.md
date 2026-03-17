@@ -89,12 +89,37 @@ For actual Bluetooth device scanning in the browser:
 ### Features
 
 - 🎹 **4 Unique Instruments** - Each with distinct wooden/organic character
+- 🎨 **4 Sound Flavors** - Melodic, Ambient, Percussive, and Ethereal presets
+- ⚙️ **Parameter Control** - Adjust volume, pitch, scale, and sensitivity via settings popup
+- 💾 **Persistent Settings** - Your preferences are saved between sessions
 - 📡 **BLE Integration** - Generate music from Bluetooth device signals
 - 🎭 **Demo Mode** - Experience BLE sound generation without Bluetooth hardware
 - 🎨 **Real-time Visualization** - Particle effects respond to your movements
 - 📱 **Touch Support** - Works great on mobile devices
 - 🔊 **Spatial Audio** - Left/right panning based on horizontal position
-- 🎼 **Musical Scale** - Notes are quantized to a minor pentatonic scale
+- 🎼 **Multiple Scales** - Choose from 9 musical scales (pentatonic, diatonic, modal)
+
+### Sound Flavors
+
+The **Settings** popup (⚙️ button in top-left) allows you to switch between 4 distinct sound flavors:
+
+1. **🎵 Melodic** - Balanced, musical tones (C3, minor pentatonic)
+   - LogDrum, Claves, Kalimba
+   - Moderate sustain, clear articulation
+
+2. **🌌 Ambient** - Spacious, atmospheric sounds (C2, major pentatonic)
+   - Pad, Shimmer, Bell
+   - Long sustain, heavy reverb, soft dynamics
+
+3. **🥁 Percussive** - Sharp, rhythmic sounds (C3, minor pentatonic)
+   - Kick, Snare, Hi-hat
+   - Short decay, tight reverb, punchy attacks
+
+4. **✨ Ethereal** - High, dreamy tones (C4, lydian mode)
+   - Crystal, Glass, Wind
+   - Very long sustain, maximum reverb, delicate character
+
+Each flavor comes with optimized parameters that can be further customized via the settings panel.
 
 ---
 
@@ -162,7 +187,19 @@ pip install bleak python-osc
 python bridge.py
 ```
 
-Then open one of the SuperCollider files (`.scd`) in SuperCollider and evaluate.
+Then open one of the SuperCollider flavor files (`.scd`) in SuperCollider and evaluate:
+
+- **woods.scd** - Melodic flavor with balanced tones
+- **flavor-ambient.scd** - Ambient flavor with long sustain and spacious reverb
+- **flavor-percussive.scd** - Percussive flavor with sharp, rhythmic sounds
+- **flavor-ethereal.scd** - Ethereal flavor with high, dreamy tones
+
+Each `.scd` file contains configurable parameters at the top:
+- `masterVol` - Overall output level (0.0 to 1.0)
+- `rootNote` - Base pitch (MIDI note number)
+- `scale` - Musical scale (minorPentatonic, majorPentatonic, minor, major, etc.)
+- `movementThreshold` - How much RSSI must change to trigger a note
+- `deviceMap` - Assign specific instruments to device MAC addresses
 
 ### Architecture
 

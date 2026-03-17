@@ -555,9 +555,9 @@
             <div class="setting-group">
                 <label>
                     Master Volume
-                    <span class="setting-value" id="volume-value">60%</span>
+                    <span class="setting-value" id="volume-value">50%</span>
                 </label>
-                <input type="range" id="volume-slider" min="0" max="100" value="60">
+                <input type="range" id="volume-slider" min="0" max="100" value="50">
             </div>
 
             <div class="setting-group">
@@ -684,8 +684,8 @@
                 
                 // Musical configuration (matching SuperCollider version)
                 this.config = {
-                    masterVol: 0.6,
-                    rootNote: 36, // MIDI note number
+                    masterVol: 0.5,
+                    rootNote: 48, // MIDI note number (C3 - melodic default)
                     scale: [0, 2, 3, 7, 9], // Minor pentatonic intervals
                     movementThreshold: 5,
                     minStrikeInterval: 100 // ms

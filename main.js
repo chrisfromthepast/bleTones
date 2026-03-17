@@ -19,7 +19,7 @@ function createWindow() {
         backgroundColor: '#1a1a2e'
     });
 
-    mainWindow.loadFile('electron.html');
+    mainWindow.loadFile('index.html');
     
     // Open DevTools in development
     // mainWindow.webContents.openDevTools();

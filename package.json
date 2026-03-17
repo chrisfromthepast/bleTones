@@ -33,7 +33,7 @@
     "files": [
       "main.js",
       "preload.js",
-      "electron.html",
+      "index.html",
       "LICENSE"
     ],
     "mac": {

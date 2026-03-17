@@ -1276,6 +1276,7 @@
                 this.isDemoMode = false;
                 this.devices = new Map(); // MAC -> { name, rssi, lastRssi, lastSeen }
                 this.scanAbortController = null;
+                this.isElectron = typeof window.electronBLE !== 'undefined';
                 
                 // Configuration matching bridge.py behavior
                 this.config = {
@@ -1286,6 +1287,13 @@
                 
                 this.lastStrike = new Map(); // MAC -> timestamp
                 
+                // Setup Electron BLE listener if available
+                if (this.isElectron) {
+                    window.electronBLE.onAdvertisement((data) => {
+                        this.processDeviceSignal(data.id, data.name, data.rssi);
+                    });
+                }
+                
                 // Update initial UI with info about capabilities
                 this.updateCapabilityInfo();
             }
@@ -1295,7 +1303,9 @@
                 const infoEl = document.getElementById('ble-info');
                 if (!infoEl) return;
                 
-                if (this.isScanningSupported()) {
+                if (this.isElectron) {
+                    infoEl.innerHTML = '✅ Native BLE scanning available (Electron app) - click "🔍 Real BLE" to start!';
+                } else if (this.isScanningSupported()) {
                     infoEl.innerHTML = '✅ Passive BLE scanning available - click "🔍 Real BLE" to start!';
                 } else if (this.isSupported()) {
                     infoEl.innerHTML = `
@@ -1381,6 +1391,33 @@
                 const demoBtn = document.getElementById('ble-demo-btn');
                 
                 errorEl.textContent = '';
+                
+                // Use Electron's native BLE if available
+                if (this.isElectron) {
+                    try {
+                        const result = await window.electronBLE.startScan();
+                        if (result.success) {
+                            this.isScanning = true;
+                            this.isDemoMode = false;
+                            statusEl.innerHTML = '<span class="ble-scanning">🔍 Scanning for BLE devices...</span>';
+                            scanBtn.textContent = '⏹ Stop Scan';
+                            demoBtn.disabled = true;
+                            infoEl.innerHTML = '✅ Native BLE scanning active - detecting all nearby devices!';
+                            
+                            // Start cleanup interval
+                            this.cleanupInterval = setInterval(() => this.cleanupOldDevices(), 1000);
+                            
+                            return true;
+                        }
+                    } catch (error) {
+                        console.error('Electron BLE scan error:', error);
+                        errorEl.textContent = `Error: ${error.message}`;
+                        if (error.message.includes('poweredOn')) {
+                            infoEl.innerHTML = '⚠️ Please turn on Bluetooth and try again, or use <strong>Demo Mode</strong>.';
+                        }
+                        return false;
+                    }
+                }
                 
                 if (!this.isSupported()) {
                     errorEl.textContent = 'Web Bluetooth is not supported in this browser. Try Chrome.';
@@ -1652,13 +1689,22 @@
             }
 
             // Stop BLE scanning
-            stopScan() {
+            async stopScan() {
                 const statusEl = document.getElementById('ble-scanning-status');
                 const scanBtn = document.getElementById('ble-scan-btn');
                 const demoBtn = document.getElementById('ble-demo-btn');
                 
                 this.isScanning = false;
                 this.isDemoMode = false;
+                
+                // Stop Electron BLE if available
+                if (this.isElectron) {
+                    try {
+                        await window.electronBLE.stopScan();
+                    } catch (error) {
+                        console.error('Error stopping Electron BLE scan:', error);
+                    }
+                }
                 
                 if (this.scanAbortController) {
                     this.scanAbortController.abort();
@@ -1967,6 +2013,14 @@
         window.addEventListener('load', () => {
             loadSettings();
         });
+
+        // Update UI to show Electron mode
+        if (typeof window.electronBLE !== 'undefined') {
+            const subtitle = document.querySelector('.subtitle');
+            if (subtitle) {
+                subtitle.textContent = 'Standalone Desktop App • Full BLE Support';
+            }
+        }
     </script>
 </body>
 </html>

@@ -100,21 +100,21 @@ For the original setup with more control and OSC integration:
 pip install bleak python-osc
 
 # Run the BLE bridge (scans Bluetooth and sends OSC messages)
-python bridge.py
+python supercollider/bridge.py
 ```
 
-Then open one of the SuperCollider flavor files in SuperCollider and evaluate it:
+Then open one of the SuperCollider flavor files (in the `supercollider/` folder) in SuperCollider and evaluate it:
 
-- `woods.scd` - Melodic flavor
-- `flavor-ambient.scd` - Ambient with long sustain
-- `flavor-percussive.scd` - Sharp, rhythmic sounds
-- `flavor-ethereal.scd` - High, dreamy tones
-- `sines.scd`, `songly.scd`, `sprites.scd` - Additional experimental presets
+- `supercollider/woods.scd` - Melodic flavor
+- `supercollider/flavor-ambient.scd` - Ambient with long sustain
+- `supercollider/flavor-percussive.scd` - Sharp, rhythmic sounds
+- `supercollider/flavor-ethereal.scd` - High, dreamy tones
+- `supercollider/sines.scd`, `supercollider/songly.scd`, `supercollider/sprites.scd` - Additional experimental presets
 
 **How it works:**
-1. `bridge.py` scans for BLE devices and normalizes RSSI values
+1. `supercollider/bridge.py` scans for BLE devices and normalizes RSSI values
 2. Sends OSC messages to SuperCollider on port 57120
-3. SuperCollider `.scd` files generate sounds based on BLE signal data
+3. SuperCollider `.scd` files in the `supercollider/` folder generate sounds based on BLE signal data
 
 ---
 

@@ -1879,7 +1879,7 @@
                 // Movement threshold is derived from user slider (1-20 → 0.01-0.3)
                 const sliderVal = this.bleTones.config.movementThreshold;
                 this.config = {
-                    movementThreshold: 0.01 + (sliderVal - 1) * (0.29 / 19),
+                    movementThreshold: BLEScanner.sliderToBleThreshold(sliderVal),
                     minStrikeInterval: 300,  // ms between strikes per device
                     deviceTimeout: 5000      // Remove devices not seen for 5s
                 };
@@ -1930,6 +1930,11 @@
             // Check if BLE scanning is supported (experimental API)
             isScanningSupported() {
                 return 'bluetooth' in navigator && 'requestLEScan' in navigator.bluetooth;
+            }
+
+            // Convert user slider value (1-20) to BLE RSSI delta threshold (0.01-0.3)
+            static sliderToBleThreshold(sliderVal) {
+                return 0.01 + (sliderVal - 1) * (0.29 / 19);
             }
 
             // Normalize RSSI from -100..-30 dBm to 0..1 range (matching bridge.py)
@@ -2599,9 +2604,9 @@
             const value = parseFloat(e.target.value);
             thresholdValue.textContent = value.toFixed(1);
             bleTones.updateMovementThreshold(value);
-            // Also update BLE scanner threshold (maps slider 1-20 to BLE delta 0.01-0.3)
+            // Also update BLE scanner threshold
             if (bleScanner) {
-                bleScanner.config.movementThreshold = 0.01 + (value - 1) * (0.29 / 19);
+                bleScanner.config.movementThreshold = BLEScanner.sliderToBleThreshold(value);
             }
             saveSettings();
         });

@@ -1123,7 +1123,7 @@
                 const envelope = ctx.createGain();
                 envelope.gain.setValueAtTime(0, now);
                 envelope.gain.linearRampToValueAtTime(1, now + 0.1);
-                envelope.gain.setTargetAtTime(0.001, now + 0.1, 1.0); // Exponential decay with time constant
+                envelope.gain.exponentialRampToValueAtTime(0.001, now + 5.0);
                 
                 const panner = ctx.createStereoPanner();
                 panner.pan.value = pan;
@@ -1175,7 +1175,7 @@
                 const envelope = ctx.createGain();
                 envelope.gain.setValueAtTime(0, now);
                 envelope.gain.linearRampToValueAtTime(1, now + 0.01);
-                envelope.gain.setTargetAtTime(0.001, now + 0.01, 0.9); // Exponential decay
+                envelope.gain.exponentialRampToValueAtTime(0.001, now + 3.5);
                 
                 const panner = ctx.createStereoPanner();
                 panner.pan.value = pan;
@@ -1226,7 +1226,7 @@
                 const envelope = ctx.createGain();
                 envelope.gain.setValueAtTime(0, now);
                 envelope.gain.linearRampToValueAtTime(1, now + 0.001);
-                envelope.gain.setTargetAtTime(0.001, now + 0.001, 0.7); // Exponential decay
+                envelope.gain.exponentialRampToValueAtTime(0.001, now + 3.5);
                 
                 const panner = ctx.createStereoPanner();
                 panner.pan.value = pan;
@@ -1460,7 +1460,7 @@
                 const envelope = ctx.createGain();
                 envelope.gain.setValueAtTime(0, now);
                 envelope.gain.linearRampToValueAtTime(1, now + 0.01);
-                envelope.gain.setTargetAtTime(0.001, now + 0.01, 1.4); // Long exponential decay
+                envelope.gain.exponentialRampToValueAtTime(0.001, now + 6.0);
                 
                 const panner = ctx.createStereoPanner();
                 panner.pan.value = pan;
@@ -1511,7 +1511,7 @@
                 const envelope = ctx.createGain();
                 envelope.gain.setValueAtTime(0, now);
                 envelope.gain.linearRampToValueAtTime(1, now + 0.02);
-                envelope.gain.setTargetAtTime(0.001, now + 0.02, 1.2); // Exponential decay
+                envelope.gain.exponentialRampToValueAtTime(0.001, now + 5.0);
                 
                 const panner = ctx.createStereoPanner();
                 panner.pan.value = pan;
@@ -1565,7 +1565,6 @@
                 const filterGains = [];
                 const resonances = [1, 1.5, 2.3, 3.1, 4.2];
                 const resonAmps = [1, 0.6, 0.4, 0.3, 0.2];
-                const decayTimes = [2, 1.5, 1.2, 1.0, 0.8]; // Different decay per resonance
                 
                 for (let i = 0; i < resonances.length; i++) {
                     const filter = ctx.createBiquadFilter();
@@ -1589,7 +1588,7 @@
                 const envelope = ctx.createGain();
                 envelope.gain.setValueAtTime(0, now);
                 envelope.gain.linearRampToValueAtTime(amp, now + 0.005);
-                envelope.gain.setTargetAtTime(0.001, now + 0.005, 1.7); // Long exponential decay
+                envelope.gain.exponentialRampToValueAtTime(0.001, now + 7.0);
                 
                 const panner = ctx.createStereoPanner();
                 panner.pan.value = pan;

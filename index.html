@@ -616,10 +616,10 @@
         <button id="start-btn">Begin Experience</button>
 
         <div class="sound-mode">
-            <button class="mode-btn active" data-mode="woodChime">Wood Chimes</button>
-            <button class="mode-btn" data-mode="deepLog">Deep Log</button>
-            <button class="mode-btn" data-mode="hollowReed">Hollow Reed</button>
-            <button class="mode-btn" data-mode="kalimba">Kalimba</button>
+            <button class="mode-btn active" data-mode="melodic">🎵 Melodic</button>
+            <button class="mode-btn" data-mode="ambient">🌊 Ambient</button>
+            <button class="mode-btn" data-mode="percussive">🥁 Percussive</button>
+            <button class="mode-btn" data-mode="ethereal">✨ Ethereal</button>
         </div>
 
         <div class="input-mode">
@@ -680,7 +680,7 @@
                 this.noteCount = 0;
                 this.lastPosition = { x: 0, y: 0 };
                 this.lastTime = 0;
-                this.currentMode = 'woodChime';
+                this.currentFlavor = 'melodic';
                 
                 // Musical configuration (matching SuperCollider version)
                 this.config = {
@@ -706,7 +706,30 @@
                     chromatic: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]
                 };
                 
-                this.currentFlavor = 'melodic';
+                // Device-to-instrument mapping for each flavor (matching SuperCollider)
+                // Each BLE device MAC address maps to a specific instrument type and octave
+                this.deviceMaps = {
+                    melodic: {
+                        '00:1a:7d:da:71:13': { type: 'logDrum', octave: 0 },
+                        'a4:c1:38:8d:12:44': { type: 'claves', octave: 2 },
+                        'default': { type: 'kalimba', octave: 1 }
+                    },
+                    ambient: {
+                        '00:1a:7d:da:71:13': { type: 'pad', octave: 0 },
+                        'a4:c1:38:8d:12:44': { type: 'shimmer', octave: 3 },
+                        'default': { type: 'bell', octave: 2 }
+                    },
+                    percussive: {
+                        '00:1a:7d:da:71:13': { type: 'kick', octave: -1 },
+                        'a4:c1:38:8d:12:44': { type: 'snare', octave: 1 },
+                        'default': { type: 'hihat', octave: 2 }
+                    },
+                    ethereal: {
+                        '00:1a:7d:da:71:13': { type: 'crystal', octave: 0 },
+                        'a4:c1:38:8d:12:44': { type: 'glass', octave: 1 },
+                        'default': { type: 'wind', octave: 2 }
+                    }
+                };
             }
 
             async init() {
@@ -835,8 +858,12 @@
                 }, 1000);
             }
 
-            // Deep Log drum sound (matching SuperCollider \deepLog)
-            playDeepLog(freq, amp, pan) {
+            // ====================
+            // MELODIC FLAVOR INSTRUMENTS
+            // ====================
+            
+            // Log Drum - Deep, hollow percussion (matching SuperCollider \logDrum)
+            playLogDrum(freq, amp, pan) {
                 const ctx = this.audioContext;
                 const now = ctx.currentTime;
                 
@@ -899,6 +926,52 @@
                     envelope.disconnect();
                     panner.disconnect();
                 }, 1500);
+            }
+            
+            // Claves - High, dry wooden percussion (matching SuperCollider \claves)
+            playClaves(freq, amp, pan) {
+                const ctx = this.audioContext;
+                const now = ctx.currentTime;
+                
+                // Create formant oscillator for sharp wooden click
+                const osc = ctx.createOscillator();
+                osc.frequency.value = freq;
+                
+                const gain = ctx.createGain();
+                gain.gain.value = amp * 0.8;
+                
+                // Very short envelope for percussive attack
+                const envelope = ctx.createGain();
+                envelope.gain.setValueAtTime(0, now);
+                envelope.gain.linearRampToValueAtTime(1, now + 0.001);
+                envelope.gain.exponentialRampToValueAtTime(0.001, now + 0.1);
+                
+                // Bandpass filter for formant-like quality
+                const bpf = ctx.createBiquadFilter();
+                bpf.type = 'bandpass';
+                bpf.frequency.value = freq * 1.5;
+                bpf.Q.value = 5;
+                
+                // Panning
+                const panner = ctx.createStereoPanner();
+                panner.pan.value = pan;
+                
+                // Connect
+                osc.connect(gain);
+                gain.connect(bpf);
+                bpf.connect(envelope);
+                envelope.connect(panner);
+                panner.connect(this.reverbInput);
+                
+                osc.start(now);
+                osc.stop(now + 0.1);
+                
+                setTimeout(() => {
+                    gain.disconnect();
+                    bpf.disconnect();
+                    envelope.disconnect();
+                    panner.disconnect();
+                }, 200);
             }
 
             // Hollow Reed sound (matching SuperCollider \hollowReed)
@@ -1020,23 +1093,578 @@
                     panner.disconnect();
                 }, 1500);
             }
+            
+            // ====================
+            // AMBIENT FLAVOR INSTRUMENTS
+            // ====================
+            
+            // Pad - Deep sustained sound with long decay (matching SuperCollider \pad)
+            playPad(freq, amp, pan) {
+                const ctx = this.audioContext;
+                const now = ctx.currentTime;
+                
+                // Multiple detuned sine waves for thick sound
+                const oscs = [];
+                const gains = [];
+                const freqs = [freq, freq * 1.01, freq * 2.0, freq * 2.02];
+                const amps = [1, 0.8, 0.3, 0.2];
+                
+                for (let i = 0; i < freqs.length; i++) {
+                    const osc = ctx.createOscillator();
+                    osc.frequency.value = freqs[i];
+                    const gain = ctx.createGain();
+                    gain.gain.value = amp * amps[i] * 0.25;
+                    osc.connect(gain);
+                    oscs.push(osc);
+                    gains.push(gain);
+                }
+                
+                // Low pass for warmth
+                const lpf = ctx.createBiquadFilter();
+                lpf.type = 'lowpass';
+                lpf.frequency.value = freq * 6;
+                
+                // Long envelope
+                const envelope = ctx.createGain();
+                envelope.gain.setValueAtTime(0, now);
+                envelope.gain.linearRampToValueAtTime(1, now + 0.1);
+                envelope.gain.exponentialRampToValueAtTime(0.001, now + 3.0);
+                
+                const panner = ctx.createStereoPanner();
+                panner.pan.value = pan;
+                
+                gains.forEach(g => g.connect(lpf));
+                lpf.connect(envelope);
+                envelope.connect(panner);
+                panner.connect(this.reverbInput);
+                
+                oscs.forEach(osc => osc.start(now));
+                oscs.forEach(osc => osc.stop(now + 3.1));
+                
+                setTimeout(() => {
+                    gains.forEach(g => g.disconnect());
+                    lpf.disconnect();
+                    envelope.disconnect();
+                    panner.disconnect();
+                }, 3200);
+            }
+            
+            // Shimmer - Bright harmonic sound (matching SuperCollider \shimmer)
+            playShimmer(freq, amp, pan) {
+                const ctx = this.audioContext;
+                const now = ctx.currentTime;
+                
+                // Harmonic series
+                const oscs = [];
+                const gains = [];
+                const harmonics = [1, 2, 3, 4, 5];
+                const harmAmps = [1, 0.5, 0.3, 0.2, 0.1];
+                
+                for (let i = 0; i < harmonics.length; i++) {
+                    const osc = ctx.createOscillator();
+                    osc.frequency.value = freq * harmonics[i];
+                    const gain = ctx.createGain();
+                    gain.gain.value = amp * harmAmps[i] * 0.6;
+                    osc.connect(gain);
+                    oscs.push(osc);
+                    gains.push(gain);
+                }
+                
+                // High pass for brightness
+                const hpf = ctx.createBiquadFilter();
+                hpf.type = 'highpass';
+                hpf.frequency.value = freq * 0.8;
+                
+                const envelope = ctx.createGain();
+                envelope.gain.setValueAtTime(0, now);
+                envelope.gain.linearRampToValueAtTime(1, now + 0.01);
+                envelope.gain.exponentialRampToValueAtTime(0.001, now + 2.5);
+                
+                const panner = ctx.createStereoPanner();
+                panner.pan.value = pan;
+                
+                gains.forEach(g => g.connect(hpf));
+                hpf.connect(envelope);
+                envelope.connect(panner);
+                panner.connect(this.reverbInput);
+                
+                oscs.forEach(osc => osc.start(now));
+                oscs.forEach(osc => osc.stop(now + 2.6));
+                
+                setTimeout(() => {
+                    gains.forEach(g => g.disconnect());
+                    hpf.disconnect();
+                    envelope.disconnect();
+                    panner.disconnect();
+                }, 2700);
+            }
+            
+            // Bell - Bell-like tone with inharmonic partials (matching SuperCollider \bell)
+            playBell(freq, amp, pan) {
+                const ctx = this.audioContext;
+                const now = ctx.currentTime;
+                
+                // Inharmonic partials for bell sound
+                const oscs = [];
+                const gains = [];
+                const partials = [1, 2.01, 3.01, 4.03, 5.02];
+                const partialAmps = [1, 0.6, 0.4, 0.2, 0.1];
+                
+                for (let i = 0; i < partials.length; i++) {
+                    const osc = ctx.createOscillator();
+                    osc.frequency.value = freq * partials[i];
+                    const gain = ctx.createGain();
+                    gain.gain.value = amp * partialAmps[i];
+                    osc.connect(gain);
+                    oscs.push(osc);
+                    gains.push(gain);
+                }
+                
+                const lpf = ctx.createBiquadFilter();
+                lpf.type = 'lowpass';
+                lpf.frequency.value = freq * 8;
+                
+                const envelope = ctx.createGain();
+                envelope.gain.setValueAtTime(0, now);
+                envelope.gain.linearRampToValueAtTime(1, now + 0.001);
+                envelope.gain.exponentialRampToValueAtTime(0.001, now + 2.0);
+                
+                const panner = ctx.createStereoPanner();
+                panner.pan.value = pan;
+                
+                gains.forEach(g => g.connect(lpf));
+                lpf.connect(envelope);
+                envelope.connect(panner);
+                panner.connect(this.reverbInput);
+                
+                oscs.forEach(osc => osc.start(now));
+                oscs.forEach(osc => osc.stop(now + 2.1));
+                
+                setTimeout(() => {
+                    gains.forEach(g => g.disconnect());
+                    lpf.disconnect();
+                    envelope.disconnect();
+                    panner.disconnect();
+                }, 2200);
+            }
+            
+            // ====================
+            // PERCUSSIVE FLAVOR INSTRUMENTS
+            // ====================
+            
+            // Kick - Bass drum with pitch drop (matching SuperCollider \kick)
+            playKick(freq, amp, pan) {
+                const ctx = this.audioContext;
+                const now = ctx.currentTime;
+                
+                const osc = ctx.createOscillator();
+                osc.frequency.setValueAtTime(freq * 3, now);
+                osc.frequency.exponentialRampToValueAtTime(freq, now + 0.05);
+                
+                const gain = ctx.createGain();
+                gain.gain.value = amp;
+                
+                const envelope = ctx.createGain();
+                envelope.gain.setValueAtTime(0, now);
+                envelope.gain.linearRampToValueAtTime(1, now + 0.001);
+                envelope.gain.exponentialRampToValueAtTime(0.001, now + 0.3);
+                
+                const lpf = ctx.createBiquadFilter();
+                lpf.type = 'lowpass';
+                lpf.frequency.value = 150;
+                
+                const panner = ctx.createStereoPanner();
+                panner.pan.value = pan;
+                
+                osc.connect(gain);
+                gain.connect(lpf);
+                lpf.connect(envelope);
+                envelope.connect(panner);
+                panner.connect(this.reverbInput);
+                
+                osc.start(now);
+                osc.stop(now + 0.35);
+                
+                setTimeout(() => {
+                    gain.disconnect();
+                    lpf.disconnect();
+                    envelope.disconnect();
+                    panner.disconnect();
+                }, 400);
+            }
+            
+            // Snare - Tone plus noise burst (matching SuperCollider \snare)
+            playSnare(freq, amp, pan) {
+                const ctx = this.audioContext;
+                const now = ctx.currentTime;
+                
+                // Tone component
+                const osc1 = ctx.createOscillator();
+                osc1.frequency.value = freq;
+                const osc2 = ctx.createOscillator();
+                osc2.frequency.value = freq * 1.5;
+                
+                const toneGain1 = ctx.createGain();
+                const toneGain2 = ctx.createGain();
+                toneGain1.gain.value = amp * 0.6;
+                toneGain2.gain.value = amp * 0.4;
+                
+                // Noise component
+                const noiseBuffer = ctx.createBuffer(1, ctx.sampleRate * 0.08, ctx.sampleRate);
+                const noiseData = noiseBuffer.getChannelData(0);
+                for (let i = 0; i < noiseData.length; i++) {
+                    noiseData[i] = (Math.random() * 2 - 1) * 0.4;
+                }
+                const noise = ctx.createBufferSource();
+                noise.buffer = noiseBuffer;
+                
+                const noiseGain = ctx.createGain();
+                noiseGain.gain.value = amp * 0.4;
+                
+                const noiseEnv = ctx.createGain();
+                noiseEnv.gain.setValueAtTime(1, now);
+                noiseEnv.gain.exponentialRampToValueAtTime(0.001, now + 0.08);
+                
+                // Mix envelope
+                const envelope = ctx.createGain();
+                envelope.gain.setValueAtTime(0, now);
+                envelope.gain.linearRampToValueAtTime(1, now + 0.001);
+                envelope.gain.exponentialRampToValueAtTime(0.001, now + 0.15);
+                
+                const hpf = ctx.createBiquadFilter();
+                hpf.type = 'highpass';
+                hpf.frequency.value = 150;
+                
+                const panner = ctx.createStereoPanner();
+                panner.pan.value = pan;
+                
+                osc1.connect(toneGain1);
+                osc2.connect(toneGain2);
+                toneGain1.connect(hpf);
+                toneGain2.connect(hpf);
+                
+                noise.connect(noiseGain);
+                noiseGain.connect(noiseEnv);
+                noiseEnv.connect(hpf);
+                
+                hpf.connect(envelope);
+                envelope.connect(panner);
+                panner.connect(this.reverbInput);
+                
+                osc1.start(now);
+                osc2.start(now);
+                noise.start(now);
+                osc1.stop(now + 0.2);
+                osc2.stop(now + 0.2);
+                
+                setTimeout(() => {
+                    toneGain1.disconnect();
+                    toneGain2.disconnect();
+                    noiseGain.disconnect();
+                    noiseEnv.disconnect();
+                    hpf.disconnect();
+                    envelope.disconnect();
+                    panner.disconnect();
+                }, 250);
+            }
+            
+            // Hihat - Filtered white noise (matching SuperCollider \hihat)
+            playHihat(freq, amp, pan) {
+                const ctx = this.audioContext;
+                const now = ctx.currentTime;
+                
+                // White noise
+                const noiseBuffer = ctx.createBuffer(1, ctx.sampleRate * 0.08, ctx.sampleRate);
+                const noiseData = noiseBuffer.getChannelData(0);
+                for (let i = 0; i < noiseData.length; i++) {
+                    noiseData[i] = (Math.random() * 2 - 1) * 0.5;
+                }
+                const noise = ctx.createBufferSource();
+                noise.buffer = noiseBuffer;
+                
+                const gain = ctx.createGain();
+                gain.gain.value = amp;
+                
+                const envelope = ctx.createGain();
+                envelope.gain.setValueAtTime(0, now);
+                envelope.gain.linearRampToValueAtTime(1, now + 0.001);
+                envelope.gain.exponentialRampToValueAtTime(0.001, now + 0.08);
+                
+                // High pass and bandpass for metallic quality
+                const hpf = ctx.createBiquadFilter();
+                hpf.type = 'highpass';
+                hpf.frequency.value = 6000;
+                
+                const bpf = ctx.createBiquadFilter();
+                bpf.type = 'bandpass';
+                bpf.frequency.value = freq;
+                bpf.Q.value = 0.3;
+                
+                const panner = ctx.createStereoPanner();
+                panner.pan.value = pan;
+                
+                noise.connect(gain);
+                gain.connect(hpf);
+                hpf.connect(bpf);
+                bpf.connect(envelope);
+                envelope.connect(panner);
+                panner.connect(this.reverbInput);
+                
+                noise.start(now);
+                
+                setTimeout(() => {
+                    gain.disconnect();
+                    hpf.disconnect();
+                    bpf.disconnect();
+                    envelope.disconnect();
+                    panner.disconnect();
+                }, 150);
+            }
+            
+            // ====================
+            // ETHEREAL FLAVOR INSTRUMENTS
+            // ====================
+            
+            // Crystal - Very long decay with many harmonics (matching SuperCollider \crystal)
+            playCrystal(freq, amp, pan) {
+                const ctx = this.audioContext;
+                const now = ctx.currentTime;
+                
+                // Many harmonics for crystalline sound
+                const oscs = [];
+                const gains = [];
+                const harmonics = [1, 2.01, 3.03, 4.05, 5.07, 6.09];
+                const harmAmps = [1, 0.6, 0.4, 0.3, 0.2, 0.1];
+                
+                for (let i = 0; i < harmonics.length; i++) {
+                    const osc = ctx.createOscillator();
+                    osc.frequency.value = freq * harmonics[i];
+                    const gain = ctx.createGain();
+                    gain.gain.value = amp * harmAmps[i] * 0.7;
+                    osc.connect(gain);
+                    oscs.push(osc);
+                    gains.push(gain);
+                }
+                
+                const hpf = ctx.createBiquadFilter();
+                hpf.type = 'highpass';
+                hpf.frequency.value = freq * 0.5;
+                
+                const envelope = ctx.createGain();
+                envelope.gain.setValueAtTime(0, now);
+                envelope.gain.linearRampToValueAtTime(1, now + 0.01);
+                envelope.gain.exponentialRampToValueAtTime(0.001, now + 4.0);
+                
+                const panner = ctx.createStereoPanner();
+                panner.pan.value = pan;
+                
+                gains.forEach(g => g.connect(hpf));
+                hpf.connect(envelope);
+                envelope.connect(panner);
+                panner.connect(this.reverbInput);
+                
+                oscs.forEach(osc => osc.start(now));
+                oscs.forEach(osc => osc.stop(now + 4.1));
+                
+                setTimeout(() => {
+                    gains.forEach(g => g.disconnect());
+                    hpf.disconnect();
+                    envelope.disconnect();
+                    panner.disconnect();
+                }, 4200);
+            }
+            
+            // Glass - Glass harmonica-like resonance (matching SuperCollider \glass)
+            playGlass(freq, amp, pan) {
+                const ctx = this.audioContext;
+                const now = ctx.currentTime;
+                
+                const oscs = [];
+                const gains = [];
+                const partials = [1, 1.99, 3.01, 4.97];
+                const partialAmps = [1, 0.5, 0.3, 0.15];
+                
+                for (let i = 0; i < partials.length; i++) {
+                    const osc = ctx.createOscillator();
+                    osc.frequency.value = freq * partials[i];
+                    const gain = ctx.createGain();
+                    gain.gain.value = amp * partialAmps[i];
+                    osc.connect(gain);
+                    oscs.push(osc);
+                    gains.push(gain);
+                }
+                
+                const bpf = ctx.createBiquadFilter();
+                bpf.type = 'bandpass';
+                bpf.frequency.value = freq * 2.5;
+                bpf.Q.value = 0.5;
+                
+                const envelope = ctx.createGain();
+                envelope.gain.setValueAtTime(0, now);
+                envelope.gain.linearRampToValueAtTime(1, now + 0.02);
+                envelope.gain.exponentialRampToValueAtTime(0.001, now + 3.5);
+                
+                const panner = ctx.createStereoPanner();
+                panner.pan.value = pan;
+                
+                gains.forEach(g => g.connect(bpf));
+                bpf.connect(envelope);
+                envelope.connect(panner);
+                panner.connect(this.reverbInput);
+                
+                oscs.forEach(osc => osc.start(now));
+                oscs.forEach(osc => osc.stop(now + 3.6));
+                
+                setTimeout(() => {
+                    gains.forEach(g => g.disconnect());
+                    bpf.disconnect();
+                    envelope.disconnect();
+                    panner.disconnect();
+                }, 3700);
+            }
+            
+            // Wind - Airy wind chime-like resonance (matching SuperCollider \wind)
+            playWind(freq, amp, pan) {
+                const ctx = this.audioContext;
+                const now = ctx.currentTime;
+                
+                // Create pink noise exciter
+                const noiseBuffer = ctx.createBuffer(1, ctx.sampleRate * 0.02, ctx.sampleRate);
+                const noiseData = noiseBuffer.getChannelData(0);
+                let b0 = 0, b1 = 0, b2 = 0, b3 = 0, b4 = 0, b5 = 0, b6 = 0;
+                for (let i = 0; i < noiseData.length; i++) {
+                    const white = Math.random() * 2 - 1;
+                    b0 = 0.99886 * b0 + white * 0.0555179;
+                    b1 = 0.99332 * b1 + white * 0.0750759;
+                    b2 = 0.96900 * b2 + white * 0.1538520;
+                    b3 = 0.86650 * b3 + white * 0.3104856;
+                    b4 = 0.55000 * b4 + white * 0.5329522;
+                    b5 = -0.7616 * b5 - white * 0.0168980;
+                    noiseData[i] = (b0 + b1 + b2 + b3 + b4 + b5 + b6 + white * 0.5362) * 0.11;
+                    b6 = white * 0.115926;
+                }
+                
+                const noise = ctx.createBufferSource();
+                noise.buffer = noiseBuffer;
+                
+                const exciterEnv = ctx.createGain();
+                exciterEnv.gain.setValueAtTime(0.1, now);
+                exciterEnv.gain.exponentialRampToValueAtTime(0.001, now + 0.02);
+                
+                // Multiple resonant filters for wind chime effect
+                const filters = [];
+                const filterGains = [];
+                const resonances = [1, 1.5, 2.3, 3.1, 4.2];
+                const resonAmps = [1, 0.6, 0.4, 0.3, 0.2];
+                
+                for (let i = 0; i < resonances.length; i++) {
+                    const filter = ctx.createBiquadFilter();
+                    filter.type = 'bandpass';
+                    filter.frequency.value = freq * resonances[i];
+                    filter.Q.value = 30;
+                    
+                    const fgain = ctx.createGain();
+                    fgain.gain.value = resonAmps[i];
+                    
+                    filters.push(filter);
+                    filterGains.push(fgain);
+                }
+                
+                const hpf = ctx.createBiquadFilter();
+                hpf.type = 'highpass';
+                hpf.frequency.value = freq * 0.8;
+                
+                const envelope = ctx.createGain();
+                envelope.gain.setValueAtTime(0, now);
+                envelope.gain.linearRampToValueAtTime(amp, now + 0.005);
+                envelope.gain.exponentialRampToValueAtTime(0.001, now + 5.0);
+                
+                const panner = ctx.createStereoPanner();
+                panner.pan.value = pan;
+                
+                noise.connect(exciterEnv);
+                filters.forEach((filter, i) => {
+                    exciterEnv.connect(filter);
+                    filter.connect(filterGains[i]);
+                    filterGains[i].connect(hpf);
+                });
+                hpf.connect(envelope);
+                envelope.connect(panner);
+                panner.connect(this.reverbInput);
+                
+                noise.start(now);
+                
+                setTimeout(() => {
+                    exciterEnv.disconnect();
+                    filters.forEach(f => f.disconnect());
+                    filterGains.forEach(g => g.disconnect());
+                    hpf.disconnect();
+                    envelope.disconnect();
+                    panner.disconnect();
+                }, 5100);
+            }
 
-            // Play a note based on current mode
-            playNote(freq, amp, pan) {
-                switch (this.currentMode) {
-                    case 'woodChime':
-                        this.playWoodChime(freq, amp, pan);
+            // Play a note using specified instrument type
+            playInstrument(instrumentType, freq, amp, pan, octaveOffset = 0) {
+                // Adjust frequency by octave offset
+                const adjustedFreq = freq * Math.pow(2, octaveOffset);
+                
+                switch (instrumentType) {
+                    // Melodic flavor instruments
+                    case 'logDrum':
+                        this.playLogDrum(adjustedFreq, amp, pan);
                         break;
-                    case 'deepLog':
-                        this.playDeepLog(freq, amp, pan);
-                        break;
-                    case 'hollowReed':
-                        this.playHollowReed(freq, amp, pan);
+                    case 'claves':
+                        this.playClaves(adjustedFreq, amp, pan);
                         break;
                     case 'kalimba':
-                        this.playKalimba(freq, amp, pan);
+                        this.playKalimba(adjustedFreq, amp, pan);
                         break;
+                    
+                    // Ambient flavor instruments
+                    case 'pad':
+                        this.playPad(adjustedFreq, amp, pan);
+                        break;
+                    case 'shimmer':
+                        this.playShimmer(adjustedFreq, amp, pan);
+                        break;
+                    case 'bell':
+                        this.playBell(adjustedFreq, amp, pan);
+                        break;
+                    
+                    // Percussive flavor instruments
+                    case 'kick':
+                        this.playKick(adjustedFreq, amp, pan);
+                        break;
+                    case 'snare':
+                        this.playSnare(adjustedFreq, amp, pan);
+                        break;
+                    case 'hihat':
+                        this.playHihat(adjustedFreq, amp, pan);
+                        break;
+                    
+                    // Ethereal flavor instruments
+                    case 'crystal':
+                        this.playCrystal(adjustedFreq, amp, pan);
+                        break;
+                    case 'glass':
+                        this.playGlass(adjustedFreq, amp, pan);
+                        break;
+                    case 'wind':
+                        this.playWind(adjustedFreq, amp, pan);
+                        break;
+                    
+                    default:
+                        // Fallback to kalimba
+                        this.playKalimba(adjustedFreq, amp, pan);
                 }
+            }
+            
+            // Play a note for mouse/touch mode (uses first instrument from current flavor)
+            playNote(freq, amp, pan) {
+                const deviceMap = this.deviceMaps[this.currentFlavor];
+                const defaultInstrument = deviceMap['default'];
+                this.playInstrument(defaultInstrument.type, freq, amp, pan, defaultInstrument.octave);
             }
 
             // Process movement (similar to BLE RSSI processing)
@@ -1104,10 +1732,6 @@
                 setTimeout(() => ripple.remove(), 1500);
             }
 
-            setMode(mode) {
-                this.currentMode = mode;
-            }
-            
             updateVolume(value) {
                 this.config.masterVol = value;
                 if (this.masterGain) {
@@ -1628,11 +2252,15 @@
             triggerSound(id, name, normRssi, delta) {
                 if (!this.bleTones.isActive) return;
                 
+                // Get device mapping for current flavor
+                const deviceMap = this.bleTones.deviceMaps[this.bleTones.currentFlavor];
+                const deviceConfig = deviceMap[id] || deviceMap['default'];
+                
                 // Map RSSI to musical parameters (matching woods.scd logic)
                 // Close = high RSSI = high pitch, Far = low RSSI = low pitch
                 // Scale degree range 0-12 spans ~2 octaves of the pentatonic scale
                 const degree = (1 - normRssi) * 12;
-                const freq = this.bleTones.degreeToFreq(degree);
+                const baseFreq = this.bleTones.degreeToFreq(degree);
                 
                 // Amplitude calculation matching woods.scd: amp = normRssi^1.2 * (delta * 10)
                 // - normRssi^1.2: slight curve so closer signals are louder
@@ -1644,12 +2272,12 @@
                 // Random pan for spatial distribution (-0.7 to 0.7, matching woods.scd rrand)
                 const pan = (Math.random() - 0.5) * 1.4;
                 
-                // Play the note
-                this.bleTones.playNote(freq, amp, pan);
+                // Play the note with device-specific instrument and octave
+                this.bleTones.playInstrument(deviceConfig.type, baseFreq, amp, pan, deviceConfig.octave);
                 
                 // Update note count
                 this.bleTones.noteCount++;
-                this.bleTones.updateUI(freq, delta);
+                this.bleTones.updateUI(baseFreq, delta);
                 
                 // Create visual effect at random position weighted by signal strength
                 const x = Math.random() * window.innerWidth;
@@ -1657,7 +2285,7 @@
                 this.bleTones.createRipple(x, y);
                 this.visualizer.addParticle(x, y, delta * 100);
                 
-                console.log(`📡 BLE Strike: ${name} | RSSI: ${normRssi.toFixed(2)} | Freq: ${freq.toFixed(1)}Hz`);
+                console.log(`📡 BLE Strike: ${name} [${deviceConfig.type}] | RSSI: ${normRssi.toFixed(2)} | Freq: ${baseFreq.toFixed(1)}Hz`);
             }
 
             // Update the device list in the UI
@@ -1766,12 +2394,12 @@
             visualizer.update();
         });
 
-        // Sound mode buttons (instrument selection)
+        // Sound mode buttons (flavor selection)
         modeButtons.forEach(btn => {
             btn.addEventListener('click', () => {
                 modeButtons.forEach(b => b.classList.remove('active'));
                 btn.classList.add('active');
-                bleTones.setMode(btn.dataset.mode);
+                bleTones.setFlavor(btn.dataset.mode);
             });
         });
 

@@ -4,19 +4,53 @@ A generative sound experience that creates beautiful, organic music through inte
 
 ## 🚀 Quick Start
 
-### Desktop App (Recommended)
+### Standalone Python Desktop App (Recommended)
 
-**Best for:** Full Bluetooth scanning and best performance
+**Best for:** Full Bluetooth scanning, best performance, and single-file distribution
+
+**Requirements:**
+- Python 3.8+
+- Install dependencies: `pip install eel bleak`
+
+**Run from source:**
+```bash
+python main.py
+```
+
+**Build a single executable (no console window):**
+
+macOS / Linux:
+```bash
+pyinstaller --onefile --noconsole --add-data "web:web" main.py
+```
+Windows:
+```bash
+pyinstaller --onefile --noconsole --add-data "web;web" main.py
+```
+The compiled binary will appear in the `dist/` folder.
+
+**Required directory structure:**
+```
+bleTones/
+├── main.py
+└── web/
+    └── index.html
+```
+
+**Features:**
+- ✅ Full native BLE scanning via Python `bleak` (no browser restrictions)
+- ✅ Automatically detects all nearby Bluetooth devices
+- ✅ Compiles to a single standalone executable
+- ✅ Web Audio synthesis rendered in an embedded browser window via `eel`
+
+### Electron Desktop App (Legacy)
+
+**Best for:** Users already set up with Node.js
 
 **One-click start:**
 - **Mac/Linux**: Double-click `start.sh` or run `./start.sh`  
 - **Windows**: Double-click `start.bat`
 - **Manual**: Run `npm install` then `npm start`
-
-**Features:**
-- ✅ Full native BLE scanning (no browser restrictions)
-- ✅ Automatically detects all nearby Bluetooth devices
-- ✅ Better performance and reliability
 
 ### Web Browser
 

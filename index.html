@@ -2257,20 +2257,36 @@
                 const deviceMap = this.bleTones.deviceMaps[this.bleTones.currentFlavor];
                 const deviceConfig = deviceMap[id] || deviceMap['default'];
                 
-                // Map RSSI to musical parameters (matching woods.scd logic)
-                // Close = high RSSI = high pitch, Far = low RSSI = low pitch
-                // Scale degree range 0-12 spans ~2 octaves of the pentatonic scale
-                const degree = (1 - normRssi) * 12;
+                // Assign each device a consistent pitch based on its ID (hash to scale degree)
+                // This prevents nearby devices from all playing high-pitched annoying sounds
+                let degree;
+                if (!this.devicePitches) {
+                    this.devicePitches = new Map();
+                }
+                
+                if (!this.devicePitches.has(id)) {
+                    // Hash device ID to a scale degree (0-11 for variety across octave)
+                    let hash = 0;
+                    for (let i = 0; i < id.length; i++) {
+                        hash = ((hash << 5) - hash) + id.charCodeAt(i);
+                        hash = hash & hash; // Convert to 32bit integer
+                    }
+                    degree = Math.abs(hash) % 12;
+                    this.devicePitches.set(id, degree);
+                } else {
+                    degree = this.devicePitches.get(id);
+                }
+                
                 const baseFreq = this.bleTones.degreeToFreq(degree);
                 
-                // Amplitude calculation matching woods.scd: amp = normRssi^1.2 * (delta * 10)
-                // - normRssi^1.2: slight curve so closer signals are louder
-                // - delta * 10: scale factor makes signal changes more audible
-                const amp = Math.min(1.0, Math.max(0.1, 
-                    Math.pow(normRssi, 1.2) * (delta * 10)
-                ));
+                // Amplitude is primarily based on RSSI and movement delta
+                // Higher RSSI (closer) = louder, more movement = louder
+                // This gives good dynamic range without being too quiet or too loud
+                const rssiComponent = Math.pow(normRssi, 0.8); // Less aggressive curve
+                const deltaComponent = Math.min(delta * 8, 0.6); // Cap delta influence
+                const amp = Math.min(0.9, Math.max(0.15, rssiComponent * 0.5 + deltaComponent));
                 
-                // Random pan for spatial distribution (-0.7 to 0.7, matching woods.scd rrand)
+                // Random pan for spatial distribution (-0.7 to 0.7)
                 const pan = (Math.random() - 0.5) * 1.4;
                 
                 // Play the note with device-specific instrument and octave

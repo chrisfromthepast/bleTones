@@ -492,6 +492,14 @@
             font-size: 1rem;
         }
 
+        .setting-hint {
+            display: block;
+            font-size: 0.7rem;
+            color: #8e9aaf;
+            font-style: italic;
+            margin-top: 2px;
+        }
+
         .settings-close {
             background: rgba(232, 213, 183, 0.2);
             border: 1px solid rgba(232, 213, 183, 0.3);
@@ -569,7 +577,10 @@
             </div>
 
             <div class="setting-group">
-                <label>Movement Threshold</label>
+                <label>
+                    Movement Threshold
+                    <span class="setting-hint">Lower = more sensitive to motion</span>
+                </label>
                 <input type="range" id="threshold-slider" min="1" max="20" value="5" step="0.5">
                 <span class="setting-value" id="threshold-value">5.0</span>
             </div>
@@ -592,10 +603,10 @@
             <div class="setting-group">
                 <label>Sound Flavor</label>
                 <div class="flavor-group">
-                    <button class="flavor-btn active" data-flavor="melodic">🎵 Melodic</button>
-                    <button class="flavor-btn" data-flavor="ambient">🌌 Ambient</button>
-                    <button class="flavor-btn" data-flavor="percussive">🥁 Percussive</button>
-                    <button class="flavor-btn" data-flavor="ethereal">✨ Ethereal</button>
+                    <button class="flavor-btn active" data-flavor="melodic">🎶 Enya</button>
+                    <button class="flavor-btn" data-flavor="ambient">🪈 Flute</button>
+                    <button class="flavor-btn" data-flavor="percussive">🔔 Vibes</button>
+                    <button class="flavor-btn" data-flavor="ethereal">🎸 Indie</button>
                 </div>
             </div>
 
@@ -699,28 +710,28 @@
                     chromatic: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]
                 };
                 
-                // Device-to-instrument mapping for each flavor (matching SuperCollider)
+                // Device-to-instrument mapping for each flavor
                 // Each BLE device MAC address maps to a specific instrument type and octave
                 this.deviceMaps = {
                     melodic: {
-                        '00:1a:7d:da:71:13': { type: 'logDrum', octave: 0 },
-                        'a4:c1:38:8d:12:44': { type: 'claves', octave: 2 },
-                        'default': { type: 'kalimba', octave: 1 }
+                        '00:1a:7d:da:71:13': { type: 'choirPad', octave: 0 },
+                        'a4:c1:38:8d:12:44': { type: 'celticHarp', octave: 1 },
+                        'default': { type: 'softString', octave: 0 }
                     },
                     ambient: {
-                        '00:1a:7d:da:71:13': { type: 'pad', octave: 0 },
-                        'a4:c1:38:8d:12:44': { type: 'shimmer', octave: 3 },
-                        'default': { type: 'bell', octave: 2 }
+                        '00:1a:7d:da:71:13': { type: 'nativeFlute', octave: 0 },
+                        'a4:c1:38:8d:12:44': { type: 'lowDrone', octave: -1 },
+                        'default': { type: 'windPad', octave: 0 }
                     },
                     percussive: {
-                        '00:1a:7d:da:71:13': { type: 'kick', octave: -1 },
-                        'a4:c1:38:8d:12:44': { type: 'snare', octave: 1 },
-                        'default': { type: 'hihat', octave: 2 }
+                        '00:1a:7d:da:71:13': { type: 'vibraphone', octave: 0 },
+                        'a4:c1:38:8d:12:44': { type: 'marimba', octave: -1 },
+                        'default': { type: 'glockenspiel', octave: 1 }
                     },
                     ethereal: {
-                        '00:1a:7d:da:71:13': { type: 'crystal', octave: 0 },
-                        'a4:c1:38:8d:12:44': { type: 'glass', octave: 1 },
-                        'default': { type: 'wind', octave: 2 }
+                        '00:1a:7d:da:71:13': { type: 'cleanGuitar', octave: 0 },
+                        'a4:c1:38:8d:12:44': { type: 'warmKeys', octave: 0 },
+                        'default': { type: 'shimmerChorus', octave: 1 }
                     }
                 };
             }
@@ -749,7 +760,7 @@
                 // Create convolver for reverb
                 const convolver = ctx.createConvolver();
                 const sampleRate = ctx.sampleRate;
-                const length = sampleRate * 2; // 2 second reverb tail
+                const length = sampleRate * 3; // 3 second reverb tail for lush sound
                 const impulse = ctx.createBuffer(2, length, sampleRate);
                 
                 for (let channel = 0; channel < 2; channel++) {
@@ -762,11 +773,11 @@
                 
                 // Dry path (direct signal)
                 const dryGain = ctx.createGain();
-                dryGain.gain.value = 0.7;
+                dryGain.gain.value = 0.6;
                 
                 // Wet path (reverb signal)
                 const wetGain = ctx.createGain();
-                wetGain.gain.value = 0.3;
+                wetGain.gain.value = 0.4;
                 
                 // Connect: reverbInput -> dry -> masterGain
                 //          reverbInput -> convolver -> wet -> masterGain
@@ -852,48 +863,290 @@
             }
 
             // ====================
-            // MELODIC FLAVOR INSTRUMENTS
+            // MELODIC FLAVOR INSTRUMENTS (Enya-inspired: lush, layered, Celtic)
             // ====================
             
-            // Log Drum - Deep, hollow percussion (matching SuperCollider \logDrum)
-            playLogDrum(freq, amp, pan) {
+            // Choir Pad - Layered vowel-like pad with slow shimmer
+            playChoirPad(freq, amp, pan) {
                 const ctx = this.audioContext;
                 const now = ctx.currentTime;
                 
-                // Create sine oscillators
-                const osc1 = ctx.createOscillator();
-                const osc2 = ctx.createOscillator();
-                const osc3 = ctx.createOscillator();
+                // Multiple detuned oscillators for thick choir effect
+                const oscs = [];
+                const gains = [];
+                const detunes = [0, 3, -3, 7, -7]; // cents detune for chorus
+                const types = ['sine', 'triangle', 'sine', 'triangle', 'sine'];
                 
-                osc1.frequency.value = freq;
-                osc2.frequency.value = freq * 1.5;
-                osc3.frequency.value = freq * 2.6;
+                for (let i = 0; i < detunes.length; i++) {
+                    const osc = ctx.createOscillator();
+                    osc.type = types[i];
+                    osc.frequency.value = freq;
+                    osc.detune.value = detunes[i];
+                    const gain = ctx.createGain();
+                    gain.gain.value = amp * 0.15;
+                    osc.connect(gain);
+                    oscs.push(osc);
+                    gains.push(gain);
+                }
                 
-                // Gains for each oscillator
-                const gain1 = ctx.createGain();
-                const gain2 = ctx.createGain();
-                const gain3 = ctx.createGain();
+                // Formant-like bandpass for vowel quality
+                const formant = ctx.createBiquadFilter();
+                formant.type = 'bandpass';
+                formant.frequency.value = Math.min(freq * 3, 2500);
+                formant.Q.value = 1.5;
                 
-                gain1.gain.value = amp;
-                gain2.gain.value = amp * 0.4;
-                gain3.gain.value = amp * 0.2;
-                
-                // Main envelope
-                const envelope = ctx.createGain();
-                envelope.gain.setValueAtTime(0, now);
-                envelope.gain.linearRampToValueAtTime(1, now + 0.01);
-                envelope.gain.exponentialRampToValueAtTime(0.001, now + 1.2);
-                
-                // Low pass
                 const lpf = ctx.createBiquadFilter();
                 lpf.type = 'lowpass';
-                lpf.frequency.value = 1000;
+                lpf.frequency.value = Math.min(freq * 5, 4000);
+                lpf.Q.value = 0.7;
                 
-                // Panning
+                // Slow attack, very long sustain
+                const envelope = ctx.createGain();
+                envelope.gain.setValueAtTime(0, now);
+                envelope.gain.linearRampToValueAtTime(1, now + 0.4);
+                envelope.gain.setValueAtTime(1, now + 3.0);
+                envelope.gain.exponentialRampToValueAtTime(0.001, now + 6.0);
+                
                 const panner = ctx.createStereoPanner();
                 panner.pan.value = pan;
                 
-                // Connect
+                gains.forEach(g => g.connect(formant));
+                formant.connect(lpf);
+                lpf.connect(envelope);
+                envelope.connect(panner);
+                panner.connect(this.reverbInput);
+                
+                oscs.forEach(osc => osc.start(now));
+                oscs.forEach(osc => osc.stop(now + 6.5));
+                
+                setTimeout(() => {
+                    gains.forEach(g => g.disconnect());
+                    formant.disconnect();
+                    lpf.disconnect();
+                    envelope.disconnect();
+                    panner.disconnect();
+                }, 6600);
+            }
+            
+            // Celtic Harp - Bright plucked harp with ringing harmonics
+            playCelticHarp(freq, amp, pan) {
+                const ctx = this.audioContext;
+                const now = ctx.currentTime;
+                
+                // Fundamental + harmonics that decay at different rates (harp character)
+                const harmonics = [1, 2, 3, 4.01, 5.02];
+                const harmAmps = [1, 0.5, 0.25, 0.12, 0.06];
+                const decays = [2.5, 2.0, 1.5, 1.0, 0.7];
+                
+                const panner = ctx.createStereoPanner();
+                panner.pan.value = pan;
+                
+                for (let i = 0; i < harmonics.length; i++) {
+                    const osc = ctx.createOscillator();
+                    osc.type = i === 0 ? 'triangle' : 'sine';
+                    osc.frequency.value = freq * harmonics[i];
+                    
+                    const gain = ctx.createGain();
+                    gain.gain.setValueAtTime(0, now);
+                    gain.gain.linearRampToValueAtTime(amp * harmAmps[i] * 0.5, now + 0.003);
+                    gain.gain.exponentialRampToValueAtTime(0.001, now + decays[i]);
+                    
+                    osc.connect(gain);
+                    gain.connect(panner);
+                    
+                    osc.start(now);
+                    osc.stop(now + decays[i] + 0.1);
+                    
+                    setTimeout(() => { gain.disconnect(); }, (decays[i] + 0.2) * 1000);
+                }
+                
+                panner.connect(this.reverbInput);
+                
+                setTimeout(() => { panner.disconnect(); }, 3000);
+            }
+            
+            // Soft String - Warm sustained string-like tone
+            playSoftString(freq, amp, pan) {
+                const ctx = this.audioContext;
+                const now = ctx.currentTime;
+                
+                // Sawtooth filtered for warm string character
+                const osc1 = ctx.createOscillator();
+                osc1.type = 'sawtooth';
+                osc1.frequency.value = freq;
+                
+                const osc2 = ctx.createOscillator();
+                osc2.type = 'sawtooth';
+                osc2.frequency.value = freq * 1.003; // Slight detune for ensemble effect
+                
+                const gain1 = ctx.createGain();
+                const gain2 = ctx.createGain();
+                gain1.gain.value = amp * 0.12;
+                gain2.gain.value = amp * 0.12;
+                
+                // Gentle low-pass for warm, not buzzy tone
+                const lpf = ctx.createBiquadFilter();
+                lpf.type = 'lowpass';
+                lpf.frequency.value = Math.min(freq * 3, 2000);
+                lpf.Q.value = 0.5;
+                
+                // Slow attack for bowed string feel
+                const envelope = ctx.createGain();
+                envelope.gain.setValueAtTime(0, now);
+                envelope.gain.linearRampToValueAtTime(1, now + 0.25);
+                envelope.gain.setValueAtTime(1, now + 2.0);
+                envelope.gain.exponentialRampToValueAtTime(0.001, now + 4.5);
+                
+                const panner = ctx.createStereoPanner();
+                panner.pan.value = pan;
+                
+                osc1.connect(gain1);
+                osc2.connect(gain2);
+                gain1.connect(lpf);
+                gain2.connect(lpf);
+                lpf.connect(envelope);
+                envelope.connect(panner);
+                panner.connect(this.reverbInput);
+                
+                osc1.start(now);
+                osc2.start(now);
+                osc1.stop(now + 5.0);
+                osc2.stop(now + 5.0);
+                
+                setTimeout(() => {
+                    gain1.disconnect();
+                    gain2.disconnect();
+                    lpf.disconnect();
+                    envelope.disconnect();
+                    panner.disconnect();
+                }, 5100);
+            }
+            
+            // ====================
+            // AMBIENT FLAVOR INSTRUMENTS (Native American Flute-inspired)
+            // ====================
+            
+            // Native Flute - Breathy sine with filtered noise breath component
+            playNativeFlute(freq, amp, pan) {
+                const ctx = this.audioContext;
+                const now = ctx.currentTime;
+                
+                // Tone component: pure sine with gentle vibrato
+                const osc = ctx.createOscillator();
+                osc.type = 'sine';
+                osc.frequency.value = freq;
+                
+                // Vibrato LFO
+                const vibrato = ctx.createOscillator();
+                vibrato.frequency.value = 4.5; // Subtle vibrato
+                const vibratoGain = ctx.createGain();
+                vibratoGain.gain.value = freq * 0.008; // Narrow vibrato depth
+                vibrato.connect(vibratoGain);
+                vibratoGain.connect(osc.frequency);
+                
+                const toneGain = ctx.createGain();
+                toneGain.gain.value = amp * 0.4;
+                
+                // Breath noise component
+                const noiseLen = ctx.sampleRate * 4;
+                const noiseBuffer = ctx.createBuffer(1, noiseLen, ctx.sampleRate);
+                const noiseData = noiseBuffer.getChannelData(0);
+                for (let i = 0; i < noiseLen; i++) {
+                    noiseData[i] = (Math.random() * 2 - 1) * 0.15;
+                }
+                const noise = ctx.createBufferSource();
+                noise.buffer = noiseBuffer;
+                
+                // Bandpass around fundamental for breathy quality
+                const breathFilter = ctx.createBiquadFilter();
+                breathFilter.type = 'bandpass';
+                breathFilter.frequency.value = freq * 2;
+                breathFilter.Q.value = 2.0;
+                
+                const breathGain = ctx.createGain();
+                breathGain.gain.value = amp * 0.15;
+                
+                // Gentle envelope - slow attack like a breath starting
+                const envelope = ctx.createGain();
+                envelope.gain.setValueAtTime(0, now);
+                envelope.gain.linearRampToValueAtTime(1, now + 0.15);
+                envelope.gain.setValueAtTime(1, now + 1.5);
+                envelope.gain.exponentialRampToValueAtTime(0.001, now + 3.5);
+                
+                const lpf = ctx.createBiquadFilter();
+                lpf.type = 'lowpass';
+                lpf.frequency.value = Math.min(freq * 4, 3000);
+                
+                const panner = ctx.createStereoPanner();
+                panner.pan.value = pan;
+                
+                osc.connect(toneGain);
+                noise.connect(breathFilter);
+                breathFilter.connect(breathGain);
+                toneGain.connect(lpf);
+                breathGain.connect(lpf);
+                lpf.connect(envelope);
+                envelope.connect(panner);
+                panner.connect(this.reverbInput);
+                
+                osc.start(now);
+                vibrato.start(now);
+                noise.start(now);
+                osc.stop(now + 4.0);
+                vibrato.stop(now + 4.0);
+                noise.stop(now + 4.0);
+                
+                setTimeout(() => {
+                    toneGain.disconnect();
+                    breathGain.disconnect();
+                    breathFilter.disconnect();
+                    lpf.disconnect();
+                    envelope.disconnect();
+                    panner.disconnect();
+                    vibratoGain.disconnect();
+                }, 4200);
+            }
+            
+            // Low Drone - Deep sustained tone for grounding
+            playLowDrone(freq, amp, pan) {
+                const ctx = this.audioContext;
+                const now = ctx.currentTime;
+                
+                // Low sine with sub-octave
+                const osc1 = ctx.createOscillator();
+                osc1.type = 'sine';
+                osc1.frequency.value = freq;
+                
+                const osc2 = ctx.createOscillator();
+                osc2.type = 'triangle';
+                osc2.frequency.value = freq * 0.5; // Sub-octave
+                
+                const osc3 = ctx.createOscillator();
+                osc3.type = 'sine';
+                osc3.frequency.value = freq * 1.5; // Perfect fifth
+                
+                const gain1 = ctx.createGain();
+                const gain2 = ctx.createGain();
+                const gain3 = ctx.createGain();
+                gain1.gain.value = amp * 0.2;
+                gain2.gain.value = amp * 0.15;
+                gain3.gain.value = amp * 0.06;
+                
+                const lpf = ctx.createBiquadFilter();
+                lpf.type = 'lowpass';
+                lpf.frequency.value = Math.min(freq * 3, 800);
+                lpf.Q.value = 0.7;
+                
+                // Very slow attack, long sustain
+                const envelope = ctx.createGain();
+                envelope.gain.setValueAtTime(0, now);
+                envelope.gain.linearRampToValueAtTime(1, now + 0.8);
+                envelope.gain.setValueAtTime(1, now + 5.0);
+                envelope.gain.exponentialRampToValueAtTime(0.001, now + 8.0);
+                
+                const panner = ctx.createStereoPanner();
+                panner.pan.value = pan * 0.3; // Subtle panning for drone
+                
                 osc1.connect(gain1);
                 osc2.connect(gain2);
                 osc3.connect(gain3);
@@ -907,9 +1160,9 @@
                 osc1.start(now);
                 osc2.start(now);
                 osc3.start(now);
-                osc1.stop(now + 1.3);
-                osc2.stop(now + 1.3);
-                osc3.stop(now + 1.3);
+                osc1.stop(now + 8.5);
+                osc2.stop(now + 8.5);
+                osc3.stop(now + 8.5);
                 
                 setTimeout(() => {
                     gain1.disconnect();
@@ -918,630 +1171,20 @@
                     lpf.disconnect();
                     envelope.disconnect();
                     panner.disconnect();
-                }, 1500);
+                }, 8600);
             }
             
-            // Claves - High, dry wooden percussion (matching SuperCollider \claves)
-            playClaves(freq, amp, pan) {
+            // Wind Pad - Airy, nature-inspired wind texture
+            playWindPad(freq, amp, pan) {
                 const ctx = this.audioContext;
                 const now = ctx.currentTime;
                 
-                // Create formant oscillator for sharp wooden click
-                const osc = ctx.createOscillator();
-                osc.frequency.value = freq;
-                
-                const gain = ctx.createGain();
-                gain.gain.value = amp * 0.8;
-                
-                // Very short envelope for percussive attack
-                const envelope = ctx.createGain();
-                envelope.gain.setValueAtTime(0, now);
-                envelope.gain.linearRampToValueAtTime(1, now + 0.001);
-                envelope.gain.exponentialRampToValueAtTime(0.001, now + 0.1);
-                
-                // Bandpass filter for formant-like quality
-                const bpf = ctx.createBiquadFilter();
-                bpf.type = 'bandpass';
-                bpf.frequency.value = freq * 1.5;
-                bpf.Q.value = 5;
-                
-                // Panning
-                const panner = ctx.createStereoPanner();
-                panner.pan.value = pan;
-                
-                // Connect
-                osc.connect(gain);
-                gain.connect(bpf);
-                bpf.connect(envelope);
-                envelope.connect(panner);
-                panner.connect(this.reverbInput);
-                
-                osc.start(now);
-                osc.stop(now + 0.1);
-                
-                setTimeout(() => {
-                    gain.disconnect();
-                    bpf.disconnect();
-                    envelope.disconnect();
-                    panner.disconnect();
-                }, 200);
-            }
-
-            // Hollow Reed sound (matching SuperCollider \hollowReed)
-            playHollowReed(freq, amp, pan) {
-                const ctx = this.audioContext;
-                const now = ctx.currentTime;
-                
-                // Create noise burst
-                const noiseBuffer = ctx.createBuffer(1, ctx.sampleRate * 0.005, ctx.sampleRate);
-                const noiseData = noiseBuffer.getChannelData(0);
-                for (let i = 0; i < noiseData.length; i++) {
-                    noiseData[i] = (Math.random() * 2 - 1) * 0.2;
-                }
-                
-                const noise = ctx.createBufferSource();
-                noise.buffer = noiseBuffer;
-                
-                // Bandpass filters for hollow sound
-                const filter1 = ctx.createBiquadFilter();
-                filter1.type = 'bandpass';
-                filter1.frequency.value = freq * 2;
-                filter1.Q.value = 15;
-                
-                const filter2 = ctx.createBiquadFilter();
-                filter2.type = 'bandpass';
-                filter2.frequency.value = freq * 3;
-                filter2.Q.value = 12;
-                
-                // Main bandpass
-                const mainBpf = ctx.createBiquadFilter();
-                mainBpf.type = 'bandpass';
-                mainBpf.frequency.value = freq * 2;
-                mainBpf.Q.value = 2.5;
-                
-                // Envelope
-                const envelope = ctx.createGain();
-                envelope.gain.setValueAtTime(0, now);
-                envelope.gain.linearRampToValueAtTime(amp, now + 0.002);
-                envelope.gain.exponentialRampToValueAtTime(0.001, now + 0.5);
-                
-                // Panning
-                const panner = ctx.createStereoPanner();
-                panner.pan.value = pan;
-                
-                // Connect
-                noise.connect(filter1);
-                noise.connect(filter2);
-                filter1.connect(mainBpf);
-                filter2.connect(mainBpf);
-                mainBpf.connect(envelope);
-                envelope.connect(panner);
-                panner.connect(this.reverbInput);
-                
-                noise.start(now);
-                noise.stop(now + 0.005);
-                
-                setTimeout(() => {
-                    filter1.disconnect();
-                    filter2.disconnect();
-                    mainBpf.disconnect();
-                    envelope.disconnect();
-                    panner.disconnect();
-                }, 600);
-            }
-
-            // Kalimba sound (matching SuperCollider \kalimba)
-            playKalimba(freq, amp, pan) {
-                const ctx = this.audioContext;
-                const now = ctx.currentTime;
-                
-                // Sine + detuned saw
-                const osc1 = ctx.createOscillator();
-                osc1.type = 'sine';
-                osc1.frequency.value = freq;
-                
-                const osc2 = ctx.createOscillator();
-                osc2.type = 'sawtooth';
-                osc2.frequency.value = freq * 2.01;
-                
-                const gain1 = ctx.createGain();
-                const gain2 = ctx.createGain();
-                gain1.gain.value = amp;
-                gain2.gain.value = amp * 0.1;
-                
-                // Low pass
-                const lpf = ctx.createBiquadFilter();
-                lpf.type = 'lowpass';
-                lpf.frequency.value = freq * 3;
-                
-                // Envelope with exponential decay
-                const envelope = ctx.createGain();
-                envelope.gain.setValueAtTime(0, now);
-                envelope.gain.linearRampToValueAtTime(1, now + 0.002);
-                envelope.gain.exponentialRampToValueAtTime(0.001, now + 1.2);
-                
-                // Panning
-                const panner = ctx.createStereoPanner();
-                panner.pan.value = pan;
-                
-                // Connect
-                osc1.connect(gain1);
-                osc2.connect(gain2);
-                gain1.connect(lpf);
-                gain2.connect(lpf);
-                lpf.connect(envelope);
-                envelope.connect(panner);
-                panner.connect(this.reverbInput);
-                
-                osc1.start(now);
-                osc2.start(now);
-                osc1.stop(now + 1.3);
-                osc2.stop(now + 1.3);
-                
-                setTimeout(() => {
-                    gain1.disconnect();
-                    gain2.disconnect();
-                    lpf.disconnect();
-                    envelope.disconnect();
-                    panner.disconnect();
-                }, 1500);
-            }
-            
-            // ====================
-            // AMBIENT FLAVOR INSTRUMENTS
-            // ====================
-            
-            // Pad - Deep sustained sound with long decay (matching SuperCollider \pad)
-            playPad(freq, amp, pan) {
-                const ctx = this.audioContext;
-                const now = ctx.currentTime;
-                
-                // Deep pad with long sustain - matching SuperCollider \pad
-                // Multiple detuned sine waves for thick, chorused sound
-                const oscs = [];
-                const gains = [];
-                const freqs = [freq, freq * 1.01, freq * 2.0, freq * 2.02];
-                const amps = [1, 0.8, 0.3, 0.2];
-                
-                for (let i = 0; i < freqs.length; i++) {
-                    const osc = ctx.createOscillator();
-                    osc.frequency.value = freqs[i];
-                    const gain = ctx.createGain();
-                    gain.gain.value = amp * amps[i] * 0.3; // Increased volume (+20%)
-                    osc.connect(gain);
-                    oscs.push(osc);
-                    gains.push(gain);
-                }
-                
-                // Low pass for warmth
-                const lpf = ctx.createBiquadFilter();
-                lpf.type = 'lowpass';
-                lpf.frequency.value = freq * 6;
-                lpf.Q.value = 0.5; // Slight resonance
-                
-                // Longer envelope with slower attack and decay (matching SC: 0.1 attack, 3.0 decay)
-                const envelope = ctx.createGain();
-                envelope.gain.setValueAtTime(0, now);
-                envelope.gain.linearRampToValueAtTime(1, now + 0.1);
-                envelope.gain.exponentialRampToValueAtTime(0.001, now + 5.0);
-                
-                const panner = ctx.createStereoPanner();
-                panner.pan.value = pan;
-                
-                gains.forEach(g => g.connect(lpf));
-                lpf.connect(envelope);
-                envelope.connect(panner);
-                panner.connect(this.reverbInput);
-                
-                oscs.forEach(osc => osc.start(now));
-                oscs.forEach(osc => osc.stop(now + 5.0)); // Longer duration
-                
-                setTimeout(() => {
-                    gains.forEach(g => g.disconnect());
-                    lpf.disconnect();
-                    envelope.disconnect();
-                    panner.disconnect();
-                }, 5100);
-            }
-            
-            // Shimmer - Bright harmonic sound (matching SuperCollider \shimmer)
-            playShimmer(freq, amp, pan) {
-                const ctx = this.audioContext;
-                const now = ctx.currentTime;
-                
-                // Rich harmonic series for shimmering effect
-                const oscs = [];
-                const gains = [];
-                const harmonics = [1, 2, 3, 4, 5];
-                const harmAmps = [1, 0.5, 0.3, 0.2, 0.1];
-                
-                for (let i = 0; i < harmonics.length; i++) {
-                    const osc = ctx.createOscillator();
-                    osc.frequency.value = freq * harmonics[i];
-                    const gain = ctx.createGain();
-                    gain.gain.value = amp * harmAmps[i] * 0.6;
-                    osc.connect(gain);
-                    oscs.push(osc);
-                    gains.push(gain);
-                }
-                
-                // High pass for brightness and airiness
-                const hpf = ctx.createBiquadFilter();
-                hpf.type = 'highpass';
-                hpf.frequency.value = freq * 0.8;
-                hpf.Q.value = 0.7; // More pronounced filtering
-                
-                // Envelope with gentle attack and long decay (SC: 0.01 attack, 2.5 decay)
-                const envelope = ctx.createGain();
-                envelope.gain.setValueAtTime(0, now);
-                envelope.gain.linearRampToValueAtTime(1, now + 0.01);
-                envelope.gain.exponentialRampToValueAtTime(0.001, now + 3.5);
-                
-                const panner = ctx.createStereoPanner();
-                panner.pan.value = pan;
-                
-                gains.forEach(g => g.connect(hpf));
-                hpf.connect(envelope);
-                envelope.connect(panner);
-                panner.connect(this.reverbInput);
-                
-                oscs.forEach(osc => osc.start(now));
-                oscs.forEach(osc => osc.stop(now + 3.5)); // Longer for more shimmer
-                
-                setTimeout(() => {
-                    gains.forEach(g => g.disconnect());
-                    hpf.disconnect();
-                    envelope.disconnect();
-                    panner.disconnect();
-                }, 3600);
-            }
-            
-            // Bell - Bell-like tone with inharmonic partials (matching SuperCollider \bell)
-            playBell(freq, amp, pan) {
-                const ctx = this.audioContext;
-                const now = ctx.currentTime;
-                
-                // Inharmonic partials for realistic bell sound
-                const oscs = [];
-                const gains = [];
-                const partials = [1, 2.01, 3.01, 4.03, 5.02];
-                const partialAmps = [1, 0.6, 0.4, 0.2, 0.1];
-                
-                for (let i = 0; i < partials.length; i++) {
-                    const osc = ctx.createOscillator();
-                    osc.frequency.value = freq * partials[i];
-                    const gain = ctx.createGain();
-                    gain.gain.value = amp * partialAmps[i] * 0.8; // Increased volume for clarity
-                    osc.connect(gain);
-                    oscs.push(osc);
-                    gains.push(gain);
-                }
-                
-                const lpf = ctx.createBiquadFilter();
-                lpf.type = 'lowpass';
-                lpf.frequency.value = freq * 8;
-                lpf.Q.value = 1.0; // Add resonance for bell character
-                
-                // Bell-like envelope: fast attack, long decay (SC: 0.001 attack, 2.0 decay)
-                const envelope = ctx.createGain();
-                envelope.gain.setValueAtTime(0, now);
-                envelope.gain.linearRampToValueAtTime(1, now + 0.001);
-                envelope.gain.exponentialRampToValueAtTime(0.001, now + 3.5);
-                
-                const panner = ctx.createStereoPanner();
-                panner.pan.value = pan;
-                
-                gains.forEach(g => g.connect(lpf));
-                lpf.connect(envelope);
-                envelope.connect(panner);
-                panner.connect(this.reverbInput);
-                
-                oscs.forEach(osc => osc.start(now));
-                oscs.forEach(osc => osc.stop(now + 3.5)); // Longer sustain
-                
-                setTimeout(() => {
-                    gains.forEach(g => g.disconnect());
-                    lpf.disconnect();
-                    envelope.disconnect();
-                    panner.disconnect();
-                }, 3600);
-            }
-            
-            // ====================
-            // PERCUSSIVE FLAVOR INSTRUMENTS
-            // ====================
-            
-            // Kick - Bass drum with pitch drop (matching SuperCollider \kick)
-            playKick(freq, amp, pan) {
-                const ctx = this.audioContext;
-                const now = ctx.currentTime;
-                
-                const osc = ctx.createOscillator();
-                // More dramatic pitch drop for better kick character (SC: pitch envelope)
-                osc.frequency.setValueAtTime(freq * 3, now);
-                osc.frequency.exponentialRampToValueAtTime(freq, now + 0.05);
-                
-                const gain = ctx.createGain();
-                gain.gain.value = amp * 1.2; // Increased volume (+20%) for more punch
-                
-                // Short, punchy envelope (SC: 0.001 attack, 0.3 decay)
-                const envelope = ctx.createGain();
-                envelope.gain.setValueAtTime(0, now);
-                envelope.gain.linearRampToValueAtTime(1, now + 0.001);
-                envelope.gain.exponentialRampToValueAtTime(0.001, now + 0.3);
-                
-                const lpf = ctx.createBiquadFilter();
-                lpf.type = 'lowpass';
-                lpf.frequency.value = 150;
-                lpf.Q.value = 1.0; // Slight resonance for thump
-                
-                const panner = ctx.createStereoPanner();
-                panner.pan.value = pan;
-                
-                osc.connect(gain);
-                gain.connect(lpf);
-                lpf.connect(envelope);
-                envelope.connect(panner);
-                panner.connect(this.reverbInput);
-                
-                osc.start(now);
-                osc.stop(now + 0.35);
-                
-                setTimeout(() => {
-                    gain.disconnect();
-                    lpf.disconnect();
-                    envelope.disconnect();
-                    panner.disconnect();
-                }, 400);
-            }
-            
-            // Snare - Tone plus noise burst (matching SuperCollider \snare)
-            playSnare(freq, amp, pan) {
-                const ctx = this.audioContext;
-                const now = ctx.currentTime;
-                
-                // Tone component - dual oscillators for body
-                const osc1 = ctx.createOscillator();
-                osc1.frequency.value = freq;
-                const osc2 = ctx.createOscillator();
-                osc2.frequency.value = freq * 1.5;
-                
-                const toneGain1 = ctx.createGain();
-                const toneGain2 = ctx.createGain();
-                toneGain1.gain.value = amp * 0.6;
-                toneGain2.gain.value = amp * 0.4;
-                
-                // Noise component - longer duration for more snare character
-                const noiseBuffer = ctx.createBuffer(1, ctx.sampleRate * 0.1, ctx.sampleRate);
-                const noiseData = noiseBuffer.getChannelData(0);
-                for (let i = 0; i < noiseData.length; i++) {
-                    noiseData[i] = (Math.random() * 2 - 1) * 0.5; // Increased noise (+25%)
-                }
-                const noise = ctx.createBufferSource();
-                noise.buffer = noiseBuffer;
-                
-                const noiseGain = ctx.createGain();
-                noiseGain.gain.value = amp * 0.5; // Increased noise presence (+25%)
-                
-                const noiseEnv = ctx.createGain();
-                noiseEnv.gain.setValueAtTime(1, now);
-                noiseEnv.gain.exponentialRampToValueAtTime(0.001, now + 0.08);
-                
-                // Mix envelope - quick and snappy (SC: 0.001 attack, 0.15 decay)
-                const envelope = ctx.createGain();
-                envelope.gain.setValueAtTime(0, now);
-                envelope.gain.linearRampToValueAtTime(1, now + 0.001);
-                envelope.gain.exponentialRampToValueAtTime(0.001, now + 0.15);
-                
-                const hpf = ctx.createBiquadFilter();
-                hpf.type = 'highpass';
-                hpf.frequency.value = 150;
-                hpf.Q.value = 1.0; // More presence
-                
-                const panner = ctx.createStereoPanner();
-                panner.pan.value = pan;
-                
-                osc1.connect(toneGain1);
-                osc2.connect(toneGain2);
-                toneGain1.connect(hpf);
-                toneGain2.connect(hpf);
-                
-                noise.connect(noiseGain);
-                noiseGain.connect(noiseEnv);
-                noiseEnv.connect(hpf);
-                
-                hpf.connect(envelope);
-                envelope.connect(panner);
-                panner.connect(this.reverbInput);
-                
-                osc1.start(now);
-                osc2.start(now);
-                noise.start(now);
-                osc1.stop(now + 0.2);
-                osc2.stop(now + 0.2);
-                
-                setTimeout(() => {
-                    toneGain1.disconnect();
-                    toneGain2.disconnect();
-                    noiseGain.disconnect();
-                    noiseEnv.disconnect();
-                    hpf.disconnect();
-                    envelope.disconnect();
-                    panner.disconnect();
-                }, 250);
-            }
-            
-            // Hihat - Filtered white noise (matching SuperCollider \hihat)
-            playHihat(freq, amp, pan) {
-                const ctx = this.audioContext;
-                const now = ctx.currentTime;
-                
-                // White noise for hi-hat
-                const noiseBuffer = ctx.createBuffer(1, ctx.sampleRate * 0.08, ctx.sampleRate);
-                const noiseData = noiseBuffer.getChannelData(0);
-                for (let i = 0; i < noiseData.length; i++) {
-                    noiseData[i] = (Math.random() * 2 - 1) * 0.6; // Increased volume
-                }
-                const noise = ctx.createBufferSource();
-                noise.buffer = noiseBuffer;
-                
-                const gain = ctx.createGain();
-                gain.gain.value = amp * 1.1; // Increased volume (+10%) for more presence
-                
-                // Very short, crisp envelope (SC: 0.001 attack, 0.08 decay)
-                const envelope = ctx.createGain();
-                envelope.gain.setValueAtTime(0, now);
-                envelope.gain.linearRampToValueAtTime(1, now + 0.001);
-                envelope.gain.exponentialRampToValueAtTime(0.001, now + 0.08);
-                
-                // High pass for brightness and bandpass for metallic quality
-                const hpf = ctx.createBiquadFilter();
-                hpf.type = 'highpass';
-                hpf.frequency.value = 6000;
-                hpf.Q.value = 0.5; // Slight resonance
-                
-                const bpf = ctx.createBiquadFilter();
-                bpf.type = 'bandpass';
-                bpf.frequency.value = freq;
-                bpf.Q.value = 0.3;
-                
-                const panner = ctx.createStereoPanner();
-                panner.pan.value = pan;
-                
-                noise.connect(gain);
-                gain.connect(hpf);
-                hpf.connect(bpf);
-                bpf.connect(envelope);
-                envelope.connect(panner);
-                panner.connect(this.reverbInput);
-                
-                noise.start(now);
-                
-                setTimeout(() => {
-                    gain.disconnect();
-                    hpf.disconnect();
-                    bpf.disconnect();
-                    envelope.disconnect();
-                    panner.disconnect();
-                }, 150);
-            }
-            
-            // ====================
-            // ETHEREAL FLAVOR INSTRUMENTS
-            // ====================
-            
-            // Crystal - Very long decay with many harmonics (matching SuperCollider \crystal)
-            playCrystal(freq, amp, pan) {
-                const ctx = this.audioContext;
-                const now = ctx.currentTime;
-                
-                // Many harmonics for crystalline, shimmering sound
-                const oscs = [];
-                const gains = [];
-                const harmonics = [1, 2.01, 3.03, 4.05, 5.07, 6.09];
-                const harmAmps = [1, 0.6, 0.4, 0.3, 0.2, 0.1];
-                
-                for (let i = 0; i < harmonics.length; i++) {
-                    const osc = ctx.createOscillator();
-                    osc.frequency.value = freq * harmonics[i];
-                    const gain = ctx.createGain();
-                    gain.gain.value = amp * harmAmps[i] * 0.7;
-                    osc.connect(gain);
-                    oscs.push(osc);
-                    gains.push(gain);
-                }
-                
-                const hpf = ctx.createBiquadFilter();
-                hpf.type = 'highpass';
-                hpf.frequency.value = freq * 0.5;
-                hpf.Q.value = 0.9; // More resonant for crystalline quality
-                
-                // Very long envelope for ethereal sustain (SC: 0.01 attack, 4.0 decay)
-                const envelope = ctx.createGain();
-                envelope.gain.setValueAtTime(0, now);
-                envelope.gain.linearRampToValueAtTime(1, now + 0.01);
-                envelope.gain.exponentialRampToValueAtTime(0.001, now + 6.0);
-                
-                const panner = ctx.createStereoPanner();
-                panner.pan.value = pan;
-                
-                gains.forEach(g => g.connect(hpf));
-                hpf.connect(envelope);
-                envelope.connect(panner);
-                panner.connect(this.reverbInput);
-                
-                oscs.forEach(osc => osc.start(now));
-                oscs.forEach(osc => osc.stop(now + 6.0)); // Much longer
-                
-                setTimeout(() => {
-                    gains.forEach(g => g.disconnect());
-                    hpf.disconnect();
-                    envelope.disconnect();
-                    panner.disconnect();
-                }, 6100);
-            }
-            
-            // Glass - Glass harmonica-like resonance (matching SuperCollider \glass)
-            playGlass(freq, amp, pan) {
-                const ctx = this.audioContext;
-                const now = ctx.currentTime;
-                
-                // Inharmonic partials for glass-like resonance
-                const oscs = [];
-                const gains = [];
-                const partials = [1, 1.99, 3.01, 4.97];
-                const partialAmps = [1, 0.5, 0.3, 0.15];
-                
-                for (let i = 0; i < partials.length; i++) {
-                    const osc = ctx.createOscillator();
-                    osc.frequency.value = freq * partials[i];
-                    const gain = ctx.createGain();
-                    gain.gain.value = amp * partialAmps[i] * 0.9; // Increased volume for clarity
-                    osc.connect(gain);
-                    oscs.push(osc);
-                    gains.push(gain);
-                }
-                
-                const bpf = ctx.createBiquadFilter();
-                bpf.type = 'bandpass';
-                bpf.frequency.value = freq * 2.5;
-                bpf.Q.value = 1.5; // Higher Q for more focused resonance
-                
-                // Glass-like envelope (SC: 0.02 attack, 3.5 decay)
-                const envelope = ctx.createGain();
-                envelope.gain.setValueAtTime(0, now);
-                envelope.gain.linearRampToValueAtTime(1, now + 0.02);
-                envelope.gain.exponentialRampToValueAtTime(0.001, now + 5.0);
-                
-                const panner = ctx.createStereoPanner();
-                panner.pan.value = pan;
-                
-                gains.forEach(g => g.connect(bpf));
-                bpf.connect(envelope);
-                envelope.connect(panner);
-                panner.connect(this.reverbInput);
-                
-                oscs.forEach(osc => osc.start(now));
-                oscs.forEach(osc => osc.stop(now + 5.0)); // Longer sustain
-                
-                setTimeout(() => {
-                    gains.forEach(g => g.disconnect());
-                    bpf.disconnect();
-                    envelope.disconnect();
-                    panner.disconnect();
-                }, 5100);
-            }
-            
-            // Wind - Airy wind chime-like resonance (matching SuperCollider \wind)
-            playWind(freq, amp, pan) {
-                const ctx = this.audioContext;
-                const now = ctx.currentTime;
-                
-                // Create pink noise exciter with Paul Kellett's algorithm
-                const noiseBuffer = ctx.createBuffer(1, ctx.sampleRate * 0.02, ctx.sampleRate);
+                // Pink noise through resonant filters for wind-like texture
+                const noiseLen = ctx.sampleRate * 5;
+                const noiseBuffer = ctx.createBuffer(1, noiseLen, ctx.sampleRate);
                 const noiseData = noiseBuffer.getChannelData(0);
                 let b0 = 0, b1 = 0, b2 = 0, b3 = 0, b4 = 0, b5 = 0, b6 = 0;
-                for (let i = 0; i < noiseData.length; i++) {
+                for (let i = 0; i < noiseLen; i++) {
                     const white = Math.random() * 2 - 1;
                     b0 = 0.99886 * b0 + white * 0.0555179;
                     b1 = 0.99332 * b1 + white * 0.0750759;
@@ -1556,63 +1199,440 @@
                 const noise = ctx.createBufferSource();
                 noise.buffer = noiseBuffer;
                 
-                const exciterEnv = ctx.createGain();
-                exciterEnv.gain.setValueAtTime(0.1, now);
-                exciterEnv.gain.exponentialRampToValueAtTime(0.001, now + 0.02);
+                const noiseGain = ctx.createGain();
+                noiseGain.gain.value = amp * 0.2;
                 
-                // Multiple resonant filters for wind chime effect (matching SC Ringz)
-                const filters = [];
-                const filterGains = [];
-                const resonances = [1, 1.5, 2.3, 3.1, 4.2];
-                const resonAmps = [1, 0.6, 0.4, 0.3, 0.2];
+                // Gentle sine tone underneath for pitch center
+                const osc = ctx.createOscillator();
+                osc.type = 'sine';
+                osc.frequency.value = freq;
+                const oscGain = ctx.createGain();
+                oscGain.gain.value = amp * 0.1;
                 
-                for (let i = 0; i < resonances.length; i++) {
-                    const filter = ctx.createBiquadFilter();
-                    filter.type = 'bandpass';
-                    filter.frequency.value = freq * resonances[i];
-                    filter.Q.value = 30; // High Q for ringing resonance
-                    
-                    const fgain = ctx.createGain();
-                    fgain.gain.value = resonAmps[i];
-                    
-                    filters.push(filter);
-                    filterGains.push(fgain);
-                }
+                // Bandpass for wind resonance around the note
+                const bpf = ctx.createBiquadFilter();
+                bpf.type = 'bandpass';
+                bpf.frequency.value = freq * 1.5;
+                bpf.Q.value = 3.0;
                 
-                const hpf = ctx.createBiquadFilter();
-                hpf.type = 'highpass';
-                hpf.frequency.value = freq * 0.8;
-                hpf.Q.value = 0.7; // Slight resonance
-                
-                // Very long envelope for ethereal sustain (SC: 0.005 attack, 5.0 decay)
+                // Very gentle envelope
                 const envelope = ctx.createGain();
                 envelope.gain.setValueAtTime(0, now);
-                envelope.gain.linearRampToValueAtTime(amp, now + 0.005);
-                envelope.gain.exponentialRampToValueAtTime(0.001, now + 7.0);
+                envelope.gain.linearRampToValueAtTime(1, now + 0.5);
+                envelope.gain.setValueAtTime(1, now + 2.5);
+                envelope.gain.exponentialRampToValueAtTime(0.001, now + 5.0);
                 
                 const panner = ctx.createStereoPanner();
                 panner.pan.value = pan;
                 
-                noise.connect(exciterEnv);
-                filters.forEach((filter, i) => {
-                    exciterEnv.connect(filter);
-                    filter.connect(filterGains[i]);
-                    filterGains[i].connect(hpf);
-                });
-                hpf.connect(envelope);
+                noise.connect(bpf);
+                bpf.connect(noiseGain);
+                osc.connect(oscGain);
+                noiseGain.connect(envelope);
+                oscGain.connect(envelope);
                 envelope.connect(panner);
                 panner.connect(this.reverbInput);
                 
                 noise.start(now);
+                osc.start(now);
+                noise.stop(now + 5.0);
+                osc.stop(now + 5.0);
                 
                 setTimeout(() => {
-                    exciterEnv.disconnect();
-                    filters.forEach(f => f.disconnect());
-                    filterGains.forEach(g => g.disconnect());
-                    hpf.disconnect();
+                    noiseGain.disconnect();
+                    oscGain.disconnect();
+                    bpf.disconnect();
                     envelope.disconnect();
                     panner.disconnect();
-                }, 7100); // Longer cleanup time
+                }, 5200);
+            }
+            
+            // ====================
+            // PERCUSSIVE FLAVOR INSTRUMENTS (Vibraphone Ensemble-inspired)
+            // ====================
+            
+            // Vibraphone - Metallic bar with motor-like tremolo
+            playVibraphone(freq, amp, pan) {
+                const ctx = this.audioContext;
+                const now = ctx.currentTime;
+                
+                // Vibraphone partials (slightly inharmonic metal bar)
+                const partials = [1, 3.99, 9.02]; // Characteristic vibraphone ratios
+                const partialAmps = [1, 0.3, 0.08];
+                const oscs = [];
+                const gains = [];
+                
+                for (let i = 0; i < partials.length; i++) {
+                    const osc = ctx.createOscillator();
+                    osc.type = 'sine';
+                    osc.frequency.value = freq * partials[i];
+                    const gain = ctx.createGain();
+                    gain.gain.value = amp * partialAmps[i] * 0.4;
+                    osc.connect(gain);
+                    oscs.push(osc);
+                    gains.push(gain);
+                }
+                
+                // Tremolo LFO (simulates the rotating motor disc)
+                const tremolo = ctx.createOscillator();
+                tremolo.frequency.value = 5.5;
+                const tremoloGain = ctx.createGain();
+                tremoloGain.gain.value = 0.2;
+                
+                const tremoloMix = ctx.createGain();
+                tremoloMix.gain.value = 1.0;
+                tremolo.connect(tremoloGain);
+                tremoloGain.connect(tremoloMix.gain);
+                
+                // Gentle envelope: quick attack, long ring
+                const envelope = ctx.createGain();
+                envelope.gain.setValueAtTime(0, now);
+                envelope.gain.linearRampToValueAtTime(1, now + 0.005);
+                envelope.gain.exponentialRampToValueAtTime(0.001, now + 3.5);
+                
+                const lpf = ctx.createBiquadFilter();
+                lpf.type = 'lowpass';
+                lpf.frequency.value = Math.min(freq * 10, 8000);
+                lpf.Q.value = 0.5;
+                
+                const panner = ctx.createStereoPanner();
+                panner.pan.value = pan;
+                
+                gains.forEach(g => g.connect(tremoloMix));
+                tremoloMix.connect(lpf);
+                lpf.connect(envelope);
+                envelope.connect(panner);
+                panner.connect(this.reverbInput);
+                
+                oscs.forEach(osc => osc.start(now));
+                tremolo.start(now);
+                oscs.forEach(osc => osc.stop(now + 4.0));
+                tremolo.stop(now + 4.0);
+                
+                setTimeout(() => {
+                    gains.forEach(g => g.disconnect());
+                    tremoloGain.disconnect();
+                    tremoloMix.disconnect();
+                    lpf.disconnect();
+                    envelope.disconnect();
+                    panner.disconnect();
+                }, 4200);
+            }
+            
+            // Marimba - Warm, woody pitched percussion
+            playMarimba(freq, amp, pan) {
+                const ctx = this.audioContext;
+                const now = ctx.currentTime;
+                
+                // Marimba: strong fundamental, gentle second partial, soft higher
+                const osc1 = ctx.createOscillator();
+                osc1.type = 'sine';
+                osc1.frequency.value = freq;
+                
+                const osc2 = ctx.createOscillator();
+                osc2.type = 'sine';
+                osc2.frequency.value = freq * 3.98; // Characteristic bar ratio
+                
+                const osc3 = ctx.createOscillator();
+                osc3.type = 'triangle';
+                osc3.frequency.value = freq * 2; // Octave for body
+                
+                const gain1 = ctx.createGain();
+                const gain2 = ctx.createGain();
+                const gain3 = ctx.createGain();
+                gain1.gain.value = amp * 0.4;
+                gain2.gain.value = amp * 0.08;
+                gain3.gain.value = amp * 0.15;
+                
+                // Warm low-pass for woody character
+                const lpf = ctx.createBiquadFilter();
+                lpf.type = 'lowpass';
+                lpf.frequency.value = Math.min(freq * 5, 3000);
+                lpf.Q.value = 0.8;
+                
+                // Quick attack, medium sustain (warmer/longer than typical)
+                const envelope = ctx.createGain();
+                envelope.gain.setValueAtTime(0, now);
+                envelope.gain.linearRampToValueAtTime(1, now + 0.003);
+                envelope.gain.exponentialRampToValueAtTime(0.001, now + 1.8);
+                
+                const panner = ctx.createStereoPanner();
+                panner.pan.value = pan;
+                
+                osc1.connect(gain1);
+                osc2.connect(gain2);
+                osc3.connect(gain3);
+                gain1.connect(lpf);
+                gain2.connect(lpf);
+                gain3.connect(lpf);
+                lpf.connect(envelope);
+                envelope.connect(panner);
+                panner.connect(this.reverbInput);
+                
+                osc1.start(now);
+                osc2.start(now);
+                osc3.start(now);
+                osc1.stop(now + 2.0);
+                osc2.stop(now + 2.0);
+                osc3.stop(now + 2.0);
+                
+                setTimeout(() => {
+                    gain1.disconnect();
+                    gain2.disconnect();
+                    gain3.disconnect();
+                    lpf.disconnect();
+                    envelope.disconnect();
+                    panner.disconnect();
+                }, 2200);
+            }
+            
+            // Glockenspiel - Bright, bell-like metallic chime
+            playGlockenspiel(freq, amp, pan) {
+                const ctx = this.audioContext;
+                const now = ctx.currentTime;
+                
+                // Inharmonic partials for metallic bell character
+                const partials = [1, 2.76, 5.40, 8.93];
+                const partialAmps = [1, 0.4, 0.15, 0.05];
+                const oscs = [];
+                const gains = [];
+                
+                for (let i = 0; i < partials.length; i++) {
+                    const osc = ctx.createOscillator();
+                    osc.type = 'sine';
+                    osc.frequency.value = freq * partials[i];
+                    const gain = ctx.createGain();
+                    gain.gain.value = amp * partialAmps[i] * 0.35;
+                    osc.connect(gain);
+                    oscs.push(osc);
+                    gains.push(gain);
+                }
+                
+                // Bright but not harsh
+                const lpf = ctx.createBiquadFilter();
+                lpf.type = 'lowpass';
+                lpf.frequency.value = Math.min(freq * 12, 12000);
+                lpf.Q.value = 0.3;
+                
+                // Quick attack, medium-long ring
+                const envelope = ctx.createGain();
+                envelope.gain.setValueAtTime(0, now);
+                envelope.gain.linearRampToValueAtTime(1, now + 0.002);
+                envelope.gain.exponentialRampToValueAtTime(0.001, now + 2.5);
+                
+                const panner = ctx.createStereoPanner();
+                panner.pan.value = pan;
+                
+                gains.forEach(g => g.connect(lpf));
+                lpf.connect(envelope);
+                envelope.connect(panner);
+                panner.connect(this.reverbInput);
+                
+                oscs.forEach(osc => osc.start(now));
+                oscs.forEach(osc => osc.stop(now + 3.0));
+                
+                setTimeout(() => {
+                    gains.forEach(g => g.disconnect());
+                    lpf.disconnect();
+                    envelope.disconnect();
+                    panner.disconnect();
+                }, 3200);
+            }
+            
+            // ====================
+            // ETHEREAL FLAVOR INSTRUMENTS (The Sea and Cake-inspired: indie jazz, clean, shimmering)
+            // ====================
+            
+            // Clean Guitar - Plucked clean electric guitar with gentle chorus
+            playCleanGuitar(freq, amp, pan) {
+                const ctx = this.audioContext;
+                const now = ctx.currentTime;
+                
+                // Karplus-Strong-inspired: triangle wave with fast decay harmonics
+                const osc1 = ctx.createOscillator();
+                osc1.type = 'triangle';
+                osc1.frequency.value = freq;
+                
+                const osc2 = ctx.createOscillator();
+                osc2.type = 'sine';
+                osc2.frequency.value = freq * 2.0;
+                
+                // Slight chorus via detuned copy
+                const osc3 = ctx.createOscillator();
+                osc3.type = 'triangle';
+                osc3.frequency.value = freq * 1.004;
+                
+                const gain1 = ctx.createGain();
+                const gain2 = ctx.createGain();
+                const gain3 = ctx.createGain();
+                gain1.gain.value = amp * 0.3;
+                gain2.gain.value = amp * 0.1;
+                gain3.gain.value = amp * 0.15;
+                
+                // Band-limited for clean guitar tone
+                const lpf = ctx.createBiquadFilter();
+                lpf.type = 'lowpass';
+                lpf.frequency.setValueAtTime(Math.min(freq * 6, 5000), now);
+                lpf.frequency.exponentialRampToValueAtTime(Math.min(freq * 2.5, 2500), now + 0.8);
+                lpf.Q.value = 1.0;
+                
+                // Quick pluck attack, medium sustain
+                const envelope = ctx.createGain();
+                envelope.gain.setValueAtTime(0, now);
+                envelope.gain.linearRampToValueAtTime(1, now + 0.005);
+                envelope.gain.exponentialRampToValueAtTime(0.001, now + 2.0);
+                
+                const panner = ctx.createStereoPanner();
+                panner.pan.value = pan;
+                
+                osc1.connect(gain1);
+                osc2.connect(gain2);
+                osc3.connect(gain3);
+                gain1.connect(lpf);
+                gain2.connect(lpf);
+                gain3.connect(lpf);
+                lpf.connect(envelope);
+                envelope.connect(panner);
+                panner.connect(this.reverbInput);
+                
+                osc1.start(now);
+                osc2.start(now);
+                osc3.start(now);
+                osc1.stop(now + 2.5);
+                osc2.stop(now + 2.5);
+                osc3.stop(now + 2.5);
+                
+                setTimeout(() => {
+                    gain1.disconnect();
+                    gain2.disconnect();
+                    gain3.disconnect();
+                    lpf.disconnect();
+                    envelope.disconnect();
+                    panner.disconnect();
+                }, 2700);
+            }
+            
+            // Warm Keys - Rhodes-like electric piano with warm overtones
+            playWarmKeys(freq, amp, pan) {
+                const ctx = this.audioContext;
+                const now = ctx.currentTime;
+                
+                // Rhodes-like: sine fundamental + bell-like overtone
+                const osc1 = ctx.createOscillator();
+                osc1.type = 'sine';
+                osc1.frequency.value = freq;
+                
+                const osc2 = ctx.createOscillator();
+                osc2.type = 'sine';
+                osc2.frequency.value = freq * 2.0;
+                
+                // Bell overtone (characteristic Rhodes tine)
+                const osc3 = ctx.createOscillator();
+                osc3.type = 'sine';
+                osc3.frequency.value = freq * 7.0; // Inharmonic bell
+                
+                const gain1 = ctx.createGain();
+                const gain2 = ctx.createGain();
+                const gain3 = ctx.createGain();
+                gain1.gain.value = amp * 0.35;
+                gain2.gain.value = amp * 0.12;
+                // Bell overtone decays faster
+                gain3.gain.setValueAtTime(amp * 0.08, now);
+                gain3.gain.exponentialRampToValueAtTime(0.001, now + 0.3);
+                
+                const lpf = ctx.createBiquadFilter();
+                lpf.type = 'lowpass';
+                lpf.frequency.value = Math.min(freq * 5, 4000);
+                lpf.Q.value = 0.7;
+                
+                // Soft attack, warm sustain
+                const envelope = ctx.createGain();
+                envelope.gain.setValueAtTime(0, now);
+                envelope.gain.linearRampToValueAtTime(1, now + 0.01);
+                envelope.gain.exponentialRampToValueAtTime(0.001, now + 3.0);
+                
+                const panner = ctx.createStereoPanner();
+                panner.pan.value = pan;
+                
+                osc1.connect(gain1);
+                osc2.connect(gain2);
+                osc3.connect(gain3);
+                gain1.connect(lpf);
+                gain2.connect(lpf);
+                gain3.connect(lpf);
+                lpf.connect(envelope);
+                envelope.connect(panner);
+                panner.connect(this.reverbInput);
+                
+                osc1.start(now);
+                osc2.start(now);
+                osc3.start(now);
+                osc1.stop(now + 3.5);
+                osc2.stop(now + 3.5);
+                osc3.stop(now + 3.5);
+                
+                setTimeout(() => {
+                    gain1.disconnect();
+                    gain2.disconnect();
+                    gain3.disconnect();
+                    lpf.disconnect();
+                    envelope.disconnect();
+                    panner.disconnect();
+                }, 3700);
+            }
+            
+            // Shimmer Chorus - Bright, shimmering indie texture with wide stereo
+            playShimmerChorus(freq, amp, pan) {
+                const ctx = this.audioContext;
+                const now = ctx.currentTime;
+                
+                // Multiple detuned oscillators for shimmery chorus
+                const detunes = [-8, -3, 0, 3, 8]; // cents
+                const oscs = [];
+                const gains = [];
+                
+                for (let i = 0; i < detunes.length; i++) {
+                    const osc = ctx.createOscillator();
+                    osc.type = i % 2 === 0 ? 'triangle' : 'sine';
+                    osc.frequency.value = freq;
+                    osc.detune.value = detunes[i];
+                    const gain = ctx.createGain();
+                    gain.gain.value = amp * 0.12;
+                    osc.connect(gain);
+                    oscs.push(osc);
+                    gains.push(gain);
+                }
+                
+                // Bright bandpass for shimmer quality
+                const bpf = ctx.createBiquadFilter();
+                bpf.type = 'bandpass';
+                bpf.frequency.value = Math.min(freq * 3, 4000);
+                bpf.Q.value = 0.8;
+                
+                // Medium attack for swelling effect
+                const envelope = ctx.createGain();
+                envelope.gain.setValueAtTime(0, now);
+                envelope.gain.linearRampToValueAtTime(1, now + 0.08);
+                envelope.gain.setValueAtTime(1, now + 1.5);
+                envelope.gain.exponentialRampToValueAtTime(0.001, now + 4.0);
+                
+                const panner = ctx.createStereoPanner();
+                panner.pan.value = pan;
+                
+                gains.forEach(g => g.connect(bpf));
+                bpf.connect(envelope);
+                envelope.connect(panner);
+                panner.connect(this.reverbInput);
+                
+                oscs.forEach(osc => osc.start(now));
+                oscs.forEach(osc => osc.stop(now + 4.5));
+                
+                setTimeout(() => {
+                    gains.forEach(g => g.disconnect());
+                    bpf.disconnect();
+                    envelope.disconnect();
+                    panner.disconnect();
+                }, 4700);
             }
 
             // Play a note using specified instrument type
@@ -1621,54 +1641,53 @@
                 const adjustedFreq = freq * Math.pow(2, octaveOffset);
                 
                 switch (instrumentType) {
-                    // Melodic flavor instruments
-                    case 'logDrum':
-                        this.playLogDrum(adjustedFreq, amp, pan);
+                    // Melodic flavor instruments (Enya)
+                    case 'choirPad':
+                        this.playChoirPad(adjustedFreq, amp, pan);
                         break;
-                    case 'claves':
-                        this.playClaves(adjustedFreq, amp, pan);
+                    case 'celticHarp':
+                        this.playCelticHarp(adjustedFreq, amp, pan);
                         break;
-                    case 'kalimba':
-                        this.playKalimba(adjustedFreq, amp, pan);
-                        break;
-                    
-                    // Ambient flavor instruments
-                    case 'pad':
-                        this.playPad(adjustedFreq, amp, pan);
-                        break;
-                    case 'shimmer':
-                        this.playShimmer(adjustedFreq, amp, pan);
-                        break;
-                    case 'bell':
-                        this.playBell(adjustedFreq, amp, pan);
+                    case 'softString':
+                        this.playSoftString(adjustedFreq, amp, pan);
                         break;
                     
-                    // Percussive flavor instruments
-                    case 'kick':
-                        this.playKick(adjustedFreq, amp, pan);
+                    // Ambient flavor instruments (Native American Flute)
+                    case 'nativeFlute':
+                        this.playNativeFlute(adjustedFreq, amp, pan);
                         break;
-                    case 'snare':
-                        this.playSnare(adjustedFreq, amp, pan);
+                    case 'lowDrone':
+                        this.playLowDrone(adjustedFreq, amp, pan);
                         break;
-                    case 'hihat':
-                        this.playHihat(adjustedFreq, amp, pan);
+                    case 'windPad':
+                        this.playWindPad(adjustedFreq, amp, pan);
                         break;
                     
-                    // Ethereal flavor instruments
-                    case 'crystal':
-                        this.playCrystal(adjustedFreq, amp, pan);
+                    // Percussive flavor instruments (Vibraphone Ensemble)
+                    case 'vibraphone':
+                        this.playVibraphone(adjustedFreq, amp, pan);
                         break;
-                    case 'glass':
-                        this.playGlass(adjustedFreq, amp, pan);
+                    case 'marimba':
+                        this.playMarimba(adjustedFreq, amp, pan);
                         break;
-                    case 'wind':
-                        this.playWind(adjustedFreq, amp, pan);
+                    case 'glockenspiel':
+                        this.playGlockenspiel(adjustedFreq, amp, pan);
+                        break;
+                    
+                    // Ethereal flavor instruments (The Sea and Cake)
+                    case 'cleanGuitar':
+                        this.playCleanGuitar(adjustedFreq, amp, pan);
+                        break;
+                    case 'warmKeys':
+                        this.playWarmKeys(adjustedFreq, amp, pan);
+                        break;
+                    case 'shimmerChorus':
+                        this.playShimmerChorus(adjustedFreq, amp, pan);
                         break;
                     
                     default:
-                        // Fallback for unknown instrument type (should not happen in normal operation)
-                        console.warn(`Unknown instrument type: ${instrumentType}, falling back to kalimba`);
-                        this.playKalimba(adjustedFreq, amp, pan);
+                        console.warn(`Unknown instrument type: ${instrumentType}, falling back to softString`);
+                        this.playSoftString(adjustedFreq, amp, pan);
                 }
             }
             
@@ -1766,67 +1785,9 @@
             }
             
             setFlavor(flavor) {
+                // Flavor only controls instrumentation and BLE-to-tone mapping
+                // Volume, key, scale, and movement are user parameters — not changed by flavor
                 this.currentFlavor = flavor;
-                // Update parameters based on flavor
-                const flavorConfigs = {
-                    melodic: {
-                        rootNote: 48,
-                        scale: 'minorPentatonic',
-                        masterVol: 0.5,
-                        movementThreshold: 5
-                    },
-                    ambient: {
-                        rootNote: 36,
-                        scale: 'majorPentatonic',
-                        masterVol: 0.35,
-                        movementThreshold: 3
-                    },
-                    percussive: {
-                        rootNote: 48,
-                        scale: 'minorPentatonic',
-                        masterVol: 0.6,
-                        movementThreshold: 7
-                    },
-                    ethereal: {
-                        rootNote: 60,
-                        scale: 'lydian',
-                        masterVol: 0.3,
-                        movementThreshold: 3
-                    }
-                };
-                
-                const flavorConfig = flavorConfigs[flavor];
-                if (flavorConfig) {
-                    this.updateRootNote(flavorConfig.rootNote);
-                    this.updateScale(flavorConfig.scale);
-                    this.updateVolume(flavorConfig.masterVol);
-                    this.updateMovementThreshold(flavorConfig.movementThreshold);
-                    
-                    // Update UI controls (only if DOM elements exist)
-                    const volumeSlider = document.getElementById('volume-slider');
-                    const volumeValue = document.getElementById('volume-value');
-                    const rootnoteSlider = document.getElementById('rootnote-slider');
-                    const scaleSelect = document.getElementById('scale-select');
-                    const thresholdSlider = document.getElementById('threshold-slider');
-                    const thresholdValue = document.getElementById('threshold-value');
-                    
-                    const volumePercent = Math.round(flavorConfig.masterVol * 100);
-                    if (volumeSlider && volumeValue) {
-                        volumeSlider.value = volumePercent;
-                        volumeValue.textContent = volumePercent + '%';
-                    }
-                    if (rootnoteSlider) {
-                        rootnoteSlider.value = flavorConfig.rootNote;
-                    }
-                    this.updateRootNoteDisplay(flavorConfig.rootNote);
-                    if (scaleSelect) {
-                        scaleSelect.value = flavorConfig.scale;
-                    }
-                    if (thresholdSlider && thresholdValue) {
-                        thresholdSlider.value = flavorConfig.movementThreshold;
-                        thresholdValue.textContent = flavorConfig.movementThreshold.toFixed(1);
-                    }
-                }
             }
             
             updateRootNoteDisplay(midiNote) {
@@ -1915,8 +1876,10 @@
                 this.isElectron = typeof window.electronBLE !== 'undefined';
                 
                 // Configuration matching bridge.py behavior
+                // Movement threshold is derived from user slider (1-20 → 0.01-0.3)
+                const sliderVal = this.bleTones.config.movementThreshold;
                 this.config = {
-                    movementThreshold: 0.04, // RSSI must change by this much (normalized)
+                    movementThreshold: 0.01 + (sliderVal - 1) * (0.29 / 19),
                     minStrikeInterval: 300,  // ms between strikes per device
                     deviceTimeout: 5000      // Remove devices not seen for 5s
                 };
@@ -2636,6 +2599,10 @@
             const value = parseFloat(e.target.value);
             thresholdValue.textContent = value.toFixed(1);
             bleTones.updateMovementThreshold(value);
+            // Also update BLE scanner threshold (maps slider 1-20 to BLE delta 0.01-0.3)
+            if (bleScanner) {
+                bleScanner.config.movementThreshold = 0.01 + (value - 1) * (0.29 / 19);
+            }
             saveSettings();
         });
 

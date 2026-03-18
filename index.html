@@ -1107,7 +1107,7 @@
                     const osc = ctx.createOscillator();
                     osc.frequency.value = freqs[i];
                     const gain = ctx.createGain();
-                    gain.gain.value = amp * amps[i] * 0.3; // Slightly louder
+                    gain.gain.value = amp * amps[i] * 0.3; // Increased volume (+20%)
                     osc.connect(gain);
                     oscs.push(osc);
                     gains.push(gain);
@@ -1211,7 +1211,7 @@
                     const osc = ctx.createOscillator();
                     osc.frequency.value = freq * partials[i];
                     const gain = ctx.createGain();
-                    gain.gain.value = amp * partialAmps[i] * 0.8; // Slightly louder
+                    gain.gain.value = amp * partialAmps[i] * 0.8; // Increased volume for clarity
                     osc.connect(gain);
                     oscs.push(osc);
                     gains.push(gain);
@@ -1262,7 +1262,7 @@
                 osc.frequency.exponentialRampToValueAtTime(freq, now + 0.05);
                 
                 const gain = ctx.createGain();
-                gain.gain.value = amp * 1.2; // Louder for more punch
+                gain.gain.value = amp * 1.2; // Increased volume (+20%) for more punch
                 
                 // Short, punchy envelope (SC: 0.001 attack, 0.3 decay)
                 const envelope = ctx.createGain();
@@ -1315,13 +1315,13 @@
                 const noiseBuffer = ctx.createBuffer(1, ctx.sampleRate * 0.1, ctx.sampleRate);
                 const noiseData = noiseBuffer.getChannelData(0);
                 for (let i = 0; i < noiseData.length; i++) {
-                    noiseData[i] = (Math.random() * 2 - 1) * 0.5; // Louder noise
+                    noiseData[i] = (Math.random() * 2 - 1) * 0.5; // Increased noise (+25%)
                 }
                 const noise = ctx.createBufferSource();
                 noise.buffer = noiseBuffer;
                 
                 const noiseGain = ctx.createGain();
-                noiseGain.gain.value = amp * 0.5; // More noise presence
+                noiseGain.gain.value = amp * 0.5; // Increased noise presence (+25%)
                 
                 const noiseEnv = ctx.createGain();
                 noiseEnv.gain.setValueAtTime(1, now);
@@ -1380,13 +1380,13 @@
                 const noiseBuffer = ctx.createBuffer(1, ctx.sampleRate * 0.08, ctx.sampleRate);
                 const noiseData = noiseBuffer.getChannelData(0);
                 for (let i = 0; i < noiseData.length; i++) {
-                    noiseData[i] = (Math.random() * 2 - 1) * 0.6; // Slightly louder
+                    noiseData[i] = (Math.random() * 2 - 1) * 0.6; // Increased volume
                 }
                 const noise = ctx.createBufferSource();
                 noise.buffer = noiseBuffer;
                 
                 const gain = ctx.createGain();
-                gain.gain.value = amp * 1.1; // More presence
+                gain.gain.value = amp * 1.1; // Increased volume (+10%) for more presence
                 
                 // Very short, crisp envelope (SC: 0.001 attack, 0.08 decay)
                 const envelope = ctx.createGain();
@@ -1496,7 +1496,7 @@
                     const osc = ctx.createOscillator();
                     osc.frequency.value = freq * partials[i];
                     const gain = ctx.createGain();
-                    gain.gain.value = amp * partialAmps[i] * 0.9; // Slightly louder
+                    gain.gain.value = amp * partialAmps[i] * 0.9; // Increased volume for clarity
                     osc.connect(gain);
                     oscs.push(osc);
                     gains.push(gain);

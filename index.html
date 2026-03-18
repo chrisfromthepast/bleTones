@@ -1655,7 +1655,8 @@
                         break;
                     
                     default:
-                        // Fallback to kalimba
+                        // Fallback for unknown instrument type (should not happen in normal operation)
+                        console.warn(`Unknown instrument type: ${instrumentType}, falling back to kalimba`);
                         this.playKalimba(adjustedFreq, amp, pan);
                 }
             }

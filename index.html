@@ -1311,7 +1311,7 @@
                 toneGain1.gain.value = amp * 0.6;
                 toneGain2.gain.value = amp * 0.4;
                 
-                // Noise component - longer for more snare character
+                // Noise component - longer duration for more snare character
                 const noiseBuffer = ctx.createBuffer(1, ctx.sampleRate * 0.1, ctx.sampleRate);
                 const noiseData = noiseBuffer.getChannelData(0);
                 for (let i = 0; i < noiseData.length; i++) {
@@ -1612,7 +1612,7 @@
                     hpf.disconnect();
                     envelope.disconnect();
                     panner.disconnect();
-                }, 7000); // Longer cleanup time
+                }, 7100); // Longer cleanup time
             }
 
             // Play a note using specified instrument type

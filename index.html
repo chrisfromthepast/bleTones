@@ -615,13 +615,6 @@
 
         <button id="start-btn">Begin Experience</button>
 
-        <div class="sound-mode">
-            <button class="mode-btn active" data-mode="melodic">🎵 Melodic</button>
-            <button class="mode-btn" data-mode="ambient">🌊 Ambient</button>
-            <button class="mode-btn" data-mode="percussive">🥁 Percussive</button>
-            <button class="mode-btn" data-mode="ethereal">✨ Ethereal</button>
-        </div>
-
         <div class="input-mode">
             <button class="input-btn active" data-input="mouse">🖱️ Mouse/Touch</button>
             <button class="input-btn" data-input="ble" id="ble-mode-btn">📡 BLE Devices</button>
@@ -1103,7 +1096,8 @@
                 const ctx = this.audioContext;
                 const now = ctx.currentTime;
                 
-                // Multiple detuned sine waves for thick sound
+                // Deep pad with long sustain - matching SuperCollider \pad
+                // Multiple detuned sine waves for thick, chorused sound
                 const oscs = [];
                 const gains = [];
                 const freqs = [freq, freq * 1.01, freq * 2.0, freq * 2.02];
@@ -1113,7 +1107,7 @@
                     const osc = ctx.createOscillator();
                     osc.frequency.value = freqs[i];
                     const gain = ctx.createGain();
-                    gain.gain.value = amp * amps[i] * 0.25;
+                    gain.gain.value = amp * amps[i] * 0.3; // Slightly louder
                     osc.connect(gain);
                     oscs.push(osc);
                     gains.push(gain);
@@ -1123,12 +1117,13 @@
                 const lpf = ctx.createBiquadFilter();
                 lpf.type = 'lowpass';
                 lpf.frequency.value = freq * 6;
+                lpf.Q.value = 0.5; // Slight resonance
                 
-                // Long envelope
+                // Longer envelope with slower attack and decay (matching SC: 0.1 attack, 3.0 decay)
                 const envelope = ctx.createGain();
                 envelope.gain.setValueAtTime(0, now);
                 envelope.gain.linearRampToValueAtTime(1, now + 0.1);
-                envelope.gain.exponentialRampToValueAtTime(0.001, now + 3.0);
+                envelope.gain.setTargetAtTime(0.001, now + 0.1, 1.0); // Exponential decay with time constant
                 
                 const panner = ctx.createStereoPanner();
                 panner.pan.value = pan;
@@ -1139,14 +1134,14 @@
                 panner.connect(this.reverbInput);
                 
                 oscs.forEach(osc => osc.start(now));
-                oscs.forEach(osc => osc.stop(now + 3.1));
+                oscs.forEach(osc => osc.stop(now + 5.0)); // Longer duration
                 
                 setTimeout(() => {
                     gains.forEach(g => g.disconnect());
                     lpf.disconnect();
                     envelope.disconnect();
                     panner.disconnect();
-                }, 3200);
+                }, 5100);
             }
             
             // Shimmer - Bright harmonic sound (matching SuperCollider \shimmer)
@@ -1154,7 +1149,7 @@
                 const ctx = this.audioContext;
                 const now = ctx.currentTime;
                 
-                // Harmonic series
+                // Rich harmonic series for shimmering effect
                 const oscs = [];
                 const gains = [];
                 const harmonics = [1, 2, 3, 4, 5];
@@ -1170,15 +1165,17 @@
                     gains.push(gain);
                 }
                 
-                // High pass for brightness
+                // High pass for brightness and airiness
                 const hpf = ctx.createBiquadFilter();
                 hpf.type = 'highpass';
                 hpf.frequency.value = freq * 0.8;
+                hpf.Q.value = 0.7; // More pronounced filtering
                 
+                // Envelope with gentle attack and long decay (SC: 0.01 attack, 2.5 decay)
                 const envelope = ctx.createGain();
                 envelope.gain.setValueAtTime(0, now);
                 envelope.gain.linearRampToValueAtTime(1, now + 0.01);
-                envelope.gain.exponentialRampToValueAtTime(0.001, now + 2.5);
+                envelope.gain.setTargetAtTime(0.001, now + 0.01, 0.9); // Exponential decay
                 
                 const panner = ctx.createStereoPanner();
                 panner.pan.value = pan;
@@ -1189,14 +1186,14 @@
                 panner.connect(this.reverbInput);
                 
                 oscs.forEach(osc => osc.start(now));
-                oscs.forEach(osc => osc.stop(now + 2.6));
+                oscs.forEach(osc => osc.stop(now + 3.5)); // Longer for more shimmer
                 
                 setTimeout(() => {
                     gains.forEach(g => g.disconnect());
                     hpf.disconnect();
                     envelope.disconnect();
                     panner.disconnect();
-                }, 2700);
+                }, 3600);
             }
             
             // Bell - Bell-like tone with inharmonic partials (matching SuperCollider \bell)
@@ -1204,7 +1201,7 @@
                 const ctx = this.audioContext;
                 const now = ctx.currentTime;
                 
-                // Inharmonic partials for bell sound
+                // Inharmonic partials for realistic bell sound
                 const oscs = [];
                 const gains = [];
                 const partials = [1, 2.01, 3.01, 4.03, 5.02];
@@ -1214,7 +1211,7 @@
                     const osc = ctx.createOscillator();
                     osc.frequency.value = freq * partials[i];
                     const gain = ctx.createGain();
-                    gain.gain.value = amp * partialAmps[i];
+                    gain.gain.value = amp * partialAmps[i] * 0.8; // Slightly louder
                     osc.connect(gain);
                     oscs.push(osc);
                     gains.push(gain);
@@ -1223,11 +1220,13 @@
                 const lpf = ctx.createBiquadFilter();
                 lpf.type = 'lowpass';
                 lpf.frequency.value = freq * 8;
+                lpf.Q.value = 1.0; // Add resonance for bell character
                 
+                // Bell-like envelope: fast attack, long decay (SC: 0.001 attack, 2.0 decay)
                 const envelope = ctx.createGain();
                 envelope.gain.setValueAtTime(0, now);
                 envelope.gain.linearRampToValueAtTime(1, now + 0.001);
-                envelope.gain.exponentialRampToValueAtTime(0.001, now + 2.0);
+                envelope.gain.setTargetAtTime(0.001, now + 0.001, 0.7); // Exponential decay
                 
                 const panner = ctx.createStereoPanner();
                 panner.pan.value = pan;
@@ -1238,14 +1237,14 @@
                 panner.connect(this.reverbInput);
                 
                 oscs.forEach(osc => osc.start(now));
-                oscs.forEach(osc => osc.stop(now + 2.1));
+                oscs.forEach(osc => osc.stop(now + 3.5)); // Longer sustain
                 
                 setTimeout(() => {
                     gains.forEach(g => g.disconnect());
                     lpf.disconnect();
                     envelope.disconnect();
                     panner.disconnect();
-                }, 2200);
+                }, 3600);
             }
             
             // ====================
@@ -1258,12 +1257,14 @@
                 const now = ctx.currentTime;
                 
                 const osc = ctx.createOscillator();
+                // More dramatic pitch drop for better kick character (SC: pitch envelope)
                 osc.frequency.setValueAtTime(freq * 3, now);
                 osc.frequency.exponentialRampToValueAtTime(freq, now + 0.05);
                 
                 const gain = ctx.createGain();
-                gain.gain.value = amp;
+                gain.gain.value = amp * 1.2; // Louder for more punch
                 
+                // Short, punchy envelope (SC: 0.001 attack, 0.3 decay)
                 const envelope = ctx.createGain();
                 envelope.gain.setValueAtTime(0, now);
                 envelope.gain.linearRampToValueAtTime(1, now + 0.001);
@@ -1272,6 +1273,7 @@
                 const lpf = ctx.createBiquadFilter();
                 lpf.type = 'lowpass';
                 lpf.frequency.value = 150;
+                lpf.Q.value = 1.0; // Slight resonance for thump
                 
                 const panner = ctx.createStereoPanner();
                 panner.pan.value = pan;
@@ -1298,7 +1300,7 @@
                 const ctx = this.audioContext;
                 const now = ctx.currentTime;
                 
-                // Tone component
+                // Tone component - dual oscillators for body
                 const osc1 = ctx.createOscillator();
                 osc1.frequency.value = freq;
                 const osc2 = ctx.createOscillator();
@@ -1309,23 +1311,23 @@
                 toneGain1.gain.value = amp * 0.6;
                 toneGain2.gain.value = amp * 0.4;
                 
-                // Noise component
-                const noiseBuffer = ctx.createBuffer(1, ctx.sampleRate * 0.08, ctx.sampleRate);
+                // Noise component - longer for more snare character
+                const noiseBuffer = ctx.createBuffer(1, ctx.sampleRate * 0.1, ctx.sampleRate);
                 const noiseData = noiseBuffer.getChannelData(0);
                 for (let i = 0; i < noiseData.length; i++) {
-                    noiseData[i] = (Math.random() * 2 - 1) * 0.4;
+                    noiseData[i] = (Math.random() * 2 - 1) * 0.5; // Louder noise
                 }
                 const noise = ctx.createBufferSource();
                 noise.buffer = noiseBuffer;
                 
                 const noiseGain = ctx.createGain();
-                noiseGain.gain.value = amp * 0.4;
+                noiseGain.gain.value = amp * 0.5; // More noise presence
                 
                 const noiseEnv = ctx.createGain();
                 noiseEnv.gain.setValueAtTime(1, now);
                 noiseEnv.gain.exponentialRampToValueAtTime(0.001, now + 0.08);
                 
-                // Mix envelope
+                // Mix envelope - quick and snappy (SC: 0.001 attack, 0.15 decay)
                 const envelope = ctx.createGain();
                 envelope.gain.setValueAtTime(0, now);
                 envelope.gain.linearRampToValueAtTime(1, now + 0.001);
@@ -1334,6 +1336,7 @@
                 const hpf = ctx.createBiquadFilter();
                 hpf.type = 'highpass';
                 hpf.frequency.value = 150;
+                hpf.Q.value = 1.0; // More presence
                 
                 const panner = ctx.createStereoPanner();
                 panner.pan.value = pan;
@@ -1373,27 +1376,29 @@
                 const ctx = this.audioContext;
                 const now = ctx.currentTime;
                 
-                // White noise
+                // White noise for hi-hat
                 const noiseBuffer = ctx.createBuffer(1, ctx.sampleRate * 0.08, ctx.sampleRate);
                 const noiseData = noiseBuffer.getChannelData(0);
                 for (let i = 0; i < noiseData.length; i++) {
-                    noiseData[i] = (Math.random() * 2 - 1) * 0.5;
+                    noiseData[i] = (Math.random() * 2 - 1) * 0.6; // Slightly louder
                 }
                 const noise = ctx.createBufferSource();
                 noise.buffer = noiseBuffer;
                 
                 const gain = ctx.createGain();
-                gain.gain.value = amp;
+                gain.gain.value = amp * 1.1; // More presence
                 
+                // Very short, crisp envelope (SC: 0.001 attack, 0.08 decay)
                 const envelope = ctx.createGain();
                 envelope.gain.setValueAtTime(0, now);
                 envelope.gain.linearRampToValueAtTime(1, now + 0.001);
                 envelope.gain.exponentialRampToValueAtTime(0.001, now + 0.08);
                 
-                // High pass and bandpass for metallic quality
+                // High pass for brightness and bandpass for metallic quality
                 const hpf = ctx.createBiquadFilter();
                 hpf.type = 'highpass';
                 hpf.frequency.value = 6000;
+                hpf.Q.value = 0.5; // Slight resonance
                 
                 const bpf = ctx.createBiquadFilter();
                 bpf.type = 'bandpass';
@@ -1430,7 +1435,7 @@
                 const ctx = this.audioContext;
                 const now = ctx.currentTime;
                 
-                // Many harmonics for crystalline sound
+                // Many harmonics for crystalline, shimmering sound
                 const oscs = [];
                 const gains = [];
                 const harmonics = [1, 2.01, 3.03, 4.05, 5.07, 6.09];
@@ -1449,11 +1454,13 @@
                 const hpf = ctx.createBiquadFilter();
                 hpf.type = 'highpass';
                 hpf.frequency.value = freq * 0.5;
+                hpf.Q.value = 0.9; // More resonant for crystalline quality
                 
+                // Very long envelope for ethereal sustain (SC: 0.01 attack, 4.0 decay)
                 const envelope = ctx.createGain();
                 envelope.gain.setValueAtTime(0, now);
                 envelope.gain.linearRampToValueAtTime(1, now + 0.01);
-                envelope.gain.exponentialRampToValueAtTime(0.001, now + 4.0);
+                envelope.gain.setTargetAtTime(0.001, now + 0.01, 1.4); // Long exponential decay
                 
                 const panner = ctx.createStereoPanner();
                 panner.pan.value = pan;
@@ -1464,14 +1471,14 @@
                 panner.connect(this.reverbInput);
                 
                 oscs.forEach(osc => osc.start(now));
-                oscs.forEach(osc => osc.stop(now + 4.1));
+                oscs.forEach(osc => osc.stop(now + 6.0)); // Much longer
                 
                 setTimeout(() => {
                     gains.forEach(g => g.disconnect());
                     hpf.disconnect();
                     envelope.disconnect();
                     panner.disconnect();
-                }, 4200);
+                }, 6100);
             }
             
             // Glass - Glass harmonica-like resonance (matching SuperCollider \glass)
@@ -1479,6 +1486,7 @@
                 const ctx = this.audioContext;
                 const now = ctx.currentTime;
                 
+                // Inharmonic partials for glass-like resonance
                 const oscs = [];
                 const gains = [];
                 const partials = [1, 1.99, 3.01, 4.97];
@@ -1488,7 +1496,7 @@
                     const osc = ctx.createOscillator();
                     osc.frequency.value = freq * partials[i];
                     const gain = ctx.createGain();
-                    gain.gain.value = amp * partialAmps[i];
+                    gain.gain.value = amp * partialAmps[i] * 0.9; // Slightly louder
                     osc.connect(gain);
                     oscs.push(osc);
                     gains.push(gain);
@@ -1497,12 +1505,13 @@
                 const bpf = ctx.createBiquadFilter();
                 bpf.type = 'bandpass';
                 bpf.frequency.value = freq * 2.5;
-                bpf.Q.value = 0.5;
+                bpf.Q.value = 1.5; // Higher Q for more focused resonance
                 
+                // Glass-like envelope (SC: 0.02 attack, 3.5 decay)
                 const envelope = ctx.createGain();
                 envelope.gain.setValueAtTime(0, now);
                 envelope.gain.linearRampToValueAtTime(1, now + 0.02);
-                envelope.gain.exponentialRampToValueAtTime(0.001, now + 3.5);
+                envelope.gain.setTargetAtTime(0.001, now + 0.02, 1.2); // Exponential decay
                 
                 const panner = ctx.createStereoPanner();
                 panner.pan.value = pan;
@@ -1513,14 +1522,14 @@
                 panner.connect(this.reverbInput);
                 
                 oscs.forEach(osc => osc.start(now));
-                oscs.forEach(osc => osc.stop(now + 3.6));
+                oscs.forEach(osc => osc.stop(now + 5.0)); // Longer sustain
                 
                 setTimeout(() => {
                     gains.forEach(g => g.disconnect());
                     bpf.disconnect();
                     envelope.disconnect();
                     panner.disconnect();
-                }, 3700);
+                }, 5100);
             }
             
             // Wind - Airy wind chime-like resonance (matching SuperCollider \wind)
@@ -1528,7 +1537,7 @@
                 const ctx = this.audioContext;
                 const now = ctx.currentTime;
                 
-                // Create pink noise exciter
+                // Create pink noise exciter with Paul Kellett's algorithm
                 const noiseBuffer = ctx.createBuffer(1, ctx.sampleRate * 0.02, ctx.sampleRate);
                 const noiseData = noiseBuffer.getChannelData(0);
                 let b0 = 0, b1 = 0, b2 = 0, b3 = 0, b4 = 0, b5 = 0, b6 = 0;
@@ -1551,17 +1560,18 @@
                 exciterEnv.gain.setValueAtTime(0.1, now);
                 exciterEnv.gain.exponentialRampToValueAtTime(0.001, now + 0.02);
                 
-                // Multiple resonant filters for wind chime effect
+                // Multiple resonant filters for wind chime effect (matching SC Ringz)
                 const filters = [];
                 const filterGains = [];
                 const resonances = [1, 1.5, 2.3, 3.1, 4.2];
                 const resonAmps = [1, 0.6, 0.4, 0.3, 0.2];
+                const decayTimes = [2, 1.5, 1.2, 1.0, 0.8]; // Different decay per resonance
                 
                 for (let i = 0; i < resonances.length; i++) {
                     const filter = ctx.createBiquadFilter();
                     filter.type = 'bandpass';
                     filter.frequency.value = freq * resonances[i];
-                    filter.Q.value = 30;
+                    filter.Q.value = 30; // High Q for ringing resonance
                     
                     const fgain = ctx.createGain();
                     fgain.gain.value = resonAmps[i];
@@ -1573,11 +1583,13 @@
                 const hpf = ctx.createBiquadFilter();
                 hpf.type = 'highpass';
                 hpf.frequency.value = freq * 0.8;
+                hpf.Q.value = 0.7; // Slight resonance
                 
+                // Very long envelope for ethereal sustain (SC: 0.005 attack, 5.0 decay)
                 const envelope = ctx.createGain();
                 envelope.gain.setValueAtTime(0, now);
                 envelope.gain.linearRampToValueAtTime(amp, now + 0.005);
-                envelope.gain.exponentialRampToValueAtTime(0.001, now + 5.0);
+                envelope.gain.setTargetAtTime(0.001, now + 0.005, 1.7); // Long exponential decay
                 
                 const panner = ctx.createStereoPanner();
                 panner.pan.value = pan;
@@ -1601,7 +1613,7 @@
                     hpf.disconnect();
                     envelope.disconnect();
                     panner.disconnect();
-                }, 5100);
+                }, 7000); // Longer cleanup time
             }
 
             // Play a note using specified instrument type
@@ -2389,7 +2401,6 @@
         const canvas = document.getElementById('visualizer');
         const visualizer = new Visualizer(canvas);
         const startBtn = document.getElementById('start-btn');
-        const modeButtons = document.querySelectorAll('.mode-btn');
         const inputButtons = document.querySelectorAll('.input-btn[data-input]');
         const bleStatus = document.getElementById('ble-status');
         const bleScanBtn = document.getElementById('ble-scan-btn');
@@ -2409,15 +2420,6 @@
             startBtn.textContent = 'Playing...';
             startBtn.disabled = true;
             visualizer.update();
-        });
-
-        // Sound mode buttons (flavor selection)
-        modeButtons.forEach(btn => {
-            btn.addEventListener('click', () => {
-                modeButtons.forEach(b => b.classList.remove('active'));
-                btn.classList.add('active');
-                bleTones.setFlavor(btn.dataset.mode);
-            });
         });
 
         // Input mode buttons (mouse/touch vs BLE)

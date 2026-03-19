@@ -21,11 +21,15 @@ python main.py
 
 macOS / Linux:
 ```bash
-pyinstaller --onefile --noconsole --add-data "web:web" main.py
+pyinstaller --onefile --noconsole --name bleTones --add-data "web:web" --osx-bundle-identifier com.chrisfromthepast.bletones main.py
+```
+On macOS, copy the included `Info.plist` into the built `.app` bundle to enable Bluetooth permissions:
+```bash
+cp Info.plist dist/bleTones.app/Contents/Info.plist
 ```
 Windows:
 ```bash
-pyinstaller --onefile --noconsole --add-data "web;web" main.py
+pyinstaller --onefile --noconsole --name bleTones --add-data "web;web" main.py
 ```
 The compiled binary will appear in the `dist/` folder.
 
@@ -90,7 +94,7 @@ Generates simulated BLE signals for a full experience without real Bluetooth har
 ### Settings & Features
 
 - 🎹 **4 Unique Instruments** - Wood Chimes, Deep Log, Hollow Reed, Kalimba
-- 🎨 **4 Sound Flavors** - Melodic, Ambient, Percussive, Ethereal (⚙️ Settings menu)
+- 🎨 **3 Sound Flavors** - Melodic, Ambient, Ethereal (⚙️ Settings menu)
 - ⚙️ **Parameter Control** - Adjust volume, pitch scale, and sensitivity
 - 💾 **Persistent Settings** - Preferences saved between sessions
 - 🎨 **Real-time Visualization** - Particle effects respond to your movements

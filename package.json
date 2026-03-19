@@ -38,7 +38,10 @@
     ],
     "mac": {
       "category": "public.app-category.music",
-      "target": "dmg"
+      "target": "dmg",
+      "extendInfo": {
+        "NSBluetoothAlwaysUsageDescription": "bleTones uses Bluetooth to detect nearby BLE devices and generate music from their signals."
+      }
     },
     "win": {
       "target": "nsis"

@@ -550,6 +550,62 @@
             border-color: #e8d5b7;
             box-shadow: 0 0 15px rgba(232, 213, 183, 0.3);
         }
+
+        .instrument-toggle-group {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            margin-top: 10px;
+        }
+
+        .instrument-toggle {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 8px 12px;
+            background: rgba(232, 213, 183, 0.05);
+            border-radius: 8px;
+            cursor: pointer;
+            transition: background 0.2s ease;
+        }
+
+        .instrument-toggle:hover {
+            background: rgba(232, 213, 183, 0.15);
+        }
+
+        .instrument-toggle input[type="checkbox"] {
+            appearance: none;
+            -webkit-appearance: none;
+            width: 20px;
+            height: 20px;
+            border: 2px solid rgba(232, 213, 183, 0.4);
+            border-radius: 4px;
+            background: transparent;
+            cursor: pointer;
+            position: relative;
+            flex-shrink: 0;
+        }
+
+        .instrument-toggle input[type="checkbox"]:checked {
+            background: rgba(232, 213, 183, 0.3);
+            border-color: #e8d5b7;
+        }
+
+        .instrument-toggle input[type="checkbox"]:checked::after {
+            content: '✓';
+            position: absolute;
+            top: -1px;
+            left: 3px;
+            color: #e8d5b7;
+            font-size: 14px;
+        }
+
+        .instrument-toggle label {
+            color: #e8d5b7;
+            font-size: 0.85rem;
+            cursor: pointer;
+            text-transform: capitalize;
+        }
     </style>
 </head>
 <body>
@@ -614,10 +670,14 @@
                 <div class="flavor-group">
                     <button class="flavor-btn active" data-flavor="melodic">🎶 Enya</button>
                     <button class="flavor-btn" data-flavor="ambient">🪈 Flute</button>
-                    <button class="flavor-btn" data-flavor="percussive">🔔 Vibes</button>
-                    <button class="flavor-btn" data-flavor="ethereal">🎸 Indie</button>
-                    <button class="flavor-btn" data-flavor="funk">🎹 Funk</button>
-                    <button class="flavor-btn" data-flavor="disco">🪩 Disco</button>
+                    <button class="flavor-btn" data-flavor="ethereal">🎸 Ethereal</button>
+                </div>
+            </div>
+
+            <div class="setting-group" id="instrument-toggles">
+                <label>Instruments</label>
+                <div class="instrument-toggle-group" id="instrument-toggle-group">
+                    <!-- Populated dynamically based on selected flavor -->
                 </div>
             </div>
 
@@ -696,6 +756,18 @@
                 this.lastPosition = { x: 0, y: 0 };
                 this.lastTime = 0;
                 this.currentFlavor = 'melodic';
+                this.disabledInstruments = new Set();
+                this.instrumentNames = {
+                    choirPad: 'Choir Pad',
+                    celticHarp: 'Celtic Harp',
+                    softString: 'Soft String',
+                    nativeFlute: 'Native Flute',
+                    lowDrone: 'Low Drone',
+                    windPad: 'Wind Pad',
+                    cleanGuitar: 'Clean Guitar',
+                    warmKeys: 'Warm Keys',
+                    shimmerChorus: 'Shimmer Chorus'
+                };
                 
                 // Musical configuration (matching SuperCollider version)
                 this.config = {
@@ -734,25 +806,10 @@
                         'a4:c1:38:8d:12:44': { type: 'lowDrone', octave: -1 },
                         'default': { type: 'windPad', octave: 0 }
                     },
-                    percussive: {
-                        '00:1a:7d:da:71:13': { type: 'vibraphone', octave: 0 },
-                        'a4:c1:38:8d:12:44': { type: 'marimba', octave: -1 },
-                        'default': { type: 'glockenspiel', octave: 1 }
-                    },
                     ethereal: {
                         '00:1a:7d:da:71:13': { type: 'cleanGuitar', octave: 0 },
                         'a4:c1:38:8d:12:44': { type: 'warmKeys', octave: 0 },
                         'default': { type: 'shimmerChorus', octave: 1 }
-                    },
-                    funk: {
-                        '00:1a:7d:da:71:13': { type: 'funkBass', octave: -1 },
-                        'a4:c1:38:8d:12:44': { type: 'clavinet', octave: 0 },
-                        'default': { type: 'funkGuitar', octave: 0 }
-                    },
-                    disco: {
-                        '00:1a:7d:da:71:13': { type: 'discoBass', octave: -1 },
-                        'a4:c1:38:8d:12:44': { type: 'discoStrings', octave: 0 },
-                        'default': { type: 'discoKeys', octave: 0 }
                     }
                 };
             }
@@ -795,10 +852,12 @@
                 // Dry path (direct signal)
                 const dryGain = ctx.createGain();
                 dryGain.gain.value = 0.6;
+                this.dryGain = dryGain;
                 
                 // Wet path (reverb signal)
                 const wetGain = ctx.createGain();
                 wetGain.gain.value = 0.4;
+                this.reverbGain = wetGain;
                 
                 // Connect: reverbInput -> dry -> masterGain
                 //          reverbInput -> convolver -> wet -> masterGain
@@ -1269,198 +1328,6 @@
             }
             
             // ====================
-            // PERCUSSIVE FLAVOR INSTRUMENTS (Vibraphone Ensemble-inspired)
-            // ====================
-            
-            // Vibraphone - Metallic bar with motor-like tremolo
-            playVibraphone(freq, amp, pan) {
-                const ctx = this.audioContext;
-                const now = ctx.currentTime;
-                
-                // Vibraphone partials (slightly inharmonic metal bar)
-                const partials = [1, 3.99, 9.02]; // Characteristic vibraphone ratios
-                const partialAmps = [1, 0.3, 0.08];
-                const oscs = [];
-                const gains = [];
-                
-                for (let i = 0; i < partials.length; i++) {
-                    const osc = ctx.createOscillator();
-                    osc.type = 'sine';
-                    osc.frequency.value = freq * partials[i];
-                    const gain = ctx.createGain();
-                    gain.gain.value = amp * partialAmps[i] * 0.4;
-                    osc.connect(gain);
-                    oscs.push(osc);
-                    gains.push(gain);
-                }
-                
-                // Tremolo LFO (simulates the rotating motor disc)
-                const tremolo = ctx.createOscillator();
-                tremolo.frequency.value = 5.5;
-                const tremoloGain = ctx.createGain();
-                tremoloGain.gain.value = 0.2;
-                
-                const tremoloMix = ctx.createGain();
-                tremoloMix.gain.value = 1.0;
-                tremolo.connect(tremoloGain);
-                tremoloGain.connect(tremoloMix.gain);
-                
-                // Gentle envelope: quick attack, long ring
-                const envelope = ctx.createGain();
-                envelope.gain.setValueAtTime(0, now);
-                envelope.gain.linearRampToValueAtTime(1, now + 0.005);
-                envelope.gain.exponentialRampToValueAtTime(0.001, now + 3.5);
-                
-                const lpf = ctx.createBiquadFilter();
-                lpf.type = 'lowpass';
-                lpf.frequency.value = Math.min(freq * 10, 8000);
-                lpf.Q.value = 0.5;
-                
-                const panner = ctx.createStereoPanner();
-                panner.pan.value = pan;
-                
-                gains.forEach(g => g.connect(tremoloMix));
-                tremoloMix.connect(lpf);
-                lpf.connect(envelope);
-                envelope.connect(panner);
-                panner.connect(this.reverbInput);
-                
-                oscs.forEach(osc => osc.start(now));
-                tremolo.start(now);
-                oscs.forEach(osc => osc.stop(now + 4.0));
-                tremolo.stop(now + 4.0);
-                
-                setTimeout(() => {
-                    gains.forEach(g => g.disconnect());
-                    tremoloGain.disconnect();
-                    tremoloMix.disconnect();
-                    lpf.disconnect();
-                    envelope.disconnect();
-                    panner.disconnect();
-                }, 4200);
-            }
-            
-            // Marimba - Warm, woody pitched percussion
-            playMarimba(freq, amp, pan) {
-                const ctx = this.audioContext;
-                const now = ctx.currentTime;
-                
-                // Marimba: strong fundamental, gentle second partial, soft higher
-                const osc1 = ctx.createOscillator();
-                osc1.type = 'sine';
-                osc1.frequency.value = freq;
-                
-                const osc2 = ctx.createOscillator();
-                osc2.type = 'sine';
-                osc2.frequency.value = freq * 3.98; // Characteristic bar ratio
-                
-                const osc3 = ctx.createOscillator();
-                osc3.type = 'triangle';
-                osc3.frequency.value = freq * 2; // Octave for body
-                
-                const gain1 = ctx.createGain();
-                const gain2 = ctx.createGain();
-                const gain3 = ctx.createGain();
-                gain1.gain.value = amp * 0.4;
-                gain2.gain.value = amp * 0.08;
-                gain3.gain.value = amp * 0.15;
-                
-                // Warm low-pass for woody character
-                const lpf = ctx.createBiquadFilter();
-                lpf.type = 'lowpass';
-                lpf.frequency.value = Math.min(freq * 5, 3000);
-                lpf.Q.value = 0.8;
-                
-                // Quick attack, medium sustain (warmer/longer than typical)
-                const envelope = ctx.createGain();
-                envelope.gain.setValueAtTime(0, now);
-                envelope.gain.linearRampToValueAtTime(1, now + 0.003);
-                envelope.gain.exponentialRampToValueAtTime(0.001, now + 1.8);
-                
-                const panner = ctx.createStereoPanner();
-                panner.pan.value = pan;
-                
-                osc1.connect(gain1);
-                osc2.connect(gain2);
-                osc3.connect(gain3);
-                gain1.connect(lpf);
-                gain2.connect(lpf);
-                gain3.connect(lpf);
-                lpf.connect(envelope);
-                envelope.connect(panner);
-                panner.connect(this.reverbInput);
-                
-                osc1.start(now);
-                osc2.start(now);
-                osc3.start(now);
-                osc1.stop(now + 2.0);
-                osc2.stop(now + 2.0);
-                osc3.stop(now + 2.0);
-                
-                setTimeout(() => {
-                    gain1.disconnect();
-                    gain2.disconnect();
-                    gain3.disconnect();
-                    lpf.disconnect();
-                    envelope.disconnect();
-                    panner.disconnect();
-                }, 2200);
-            }
-            
-            // Glockenspiel - Bright, bell-like metallic chime
-            playGlockenspiel(freq, amp, pan) {
-                const ctx = this.audioContext;
-                const now = ctx.currentTime;
-                
-                // Inharmonic partials for metallic bell character
-                const partials = [1, 2.76, 5.40, 8.93];
-                const partialAmps = [1, 0.4, 0.15, 0.05];
-                const oscs = [];
-                const gains = [];
-                
-                for (let i = 0; i < partials.length; i++) {
-                    const osc = ctx.createOscillator();
-                    osc.type = 'sine';
-                    osc.frequency.value = freq * partials[i];
-                    const gain = ctx.createGain();
-                    gain.gain.value = amp * partialAmps[i] * 0.35;
-                    osc.connect(gain);
-                    oscs.push(osc);
-                    gains.push(gain);
-                }
-                
-                // Bright but not harsh
-                const lpf = ctx.createBiquadFilter();
-                lpf.type = 'lowpass';
-                lpf.frequency.value = Math.min(freq * 12, 12000);
-                lpf.Q.value = 0.3;
-                
-                // Quick attack, medium-long ring
-                const envelope = ctx.createGain();
-                envelope.gain.setValueAtTime(0, now);
-                envelope.gain.linearRampToValueAtTime(1, now + 0.002);
-                envelope.gain.exponentialRampToValueAtTime(0.001, now + 2.5);
-                
-                const panner = ctx.createStereoPanner();
-                panner.pan.value = pan;
-                
-                gains.forEach(g => g.connect(lpf));
-                lpf.connect(envelope);
-                envelope.connect(panner);
-                panner.connect(this.reverbInput);
-                
-                oscs.forEach(osc => osc.start(now));
-                oscs.forEach(osc => osc.stop(now + 3.0));
-                
-                setTimeout(() => {
-                    gains.forEach(g => g.disconnect());
-                    lpf.disconnect();
-                    envelope.disconnect();
-                    panner.disconnect();
-                }, 3200);
-            }
-            
-            // ====================
             // ETHEREAL FLAVOR INSTRUMENTS (The Sea and Cake-inspired: indie jazz, clean, shimmering)
             // ====================
             
@@ -1656,386 +1523,9 @@
                 }, 4700);
             }
 
-            // ====================
-            // FUNK FLAVOR INSTRUMENTS (Rhythmic, groovy, syncopated)
-            // ====================
-            
-            // Funk Bass - Punchy, tight bass with envelope filter sweep
-            playFunkBass(freq, amp, pan) {
-                const ctx = this.audioContext;
-                const now = ctx.currentTime;
-                
-                // Sawtooth for rich harmonics, squared-off for punch
-                const osc1 = ctx.createOscillator();
-                osc1.type = 'sawtooth';
-                osc1.frequency.value = freq;
-                
-                const osc2 = ctx.createOscillator();
-                osc2.type = 'square';
-                osc2.frequency.value = freq;
-                
-                const gain1 = ctx.createGain();
-                const gain2 = ctx.createGain();
-                gain1.gain.value = amp * 0.35;
-                gain2.gain.value = amp * 0.15;
-                
-                // Envelope filter sweep (auto-wah feel)
-                const lpf = ctx.createBiquadFilter();
-                lpf.type = 'lowpass';
-                lpf.frequency.setValueAtTime(Math.min(freq * 8, 4000), now);
-                lpf.frequency.exponentialRampToValueAtTime(Math.max(freq * 1.5, 80), now + 0.3);
-                lpf.Q.value = 4.0;
-                
-                // Tight, punchy envelope
-                const envelope = ctx.createGain();
-                envelope.gain.setValueAtTime(0, now);
-                envelope.gain.linearRampToValueAtTime(1, now + 0.005);
-                envelope.gain.setValueAtTime(0.8, now + 0.05);
-                envelope.gain.exponentialRampToValueAtTime(0.001, now + 0.6);
-                
-                const panner = ctx.createStereoPanner();
-                panner.pan.value = pan;
-                
-                osc1.connect(gain1);
-                osc2.connect(gain2);
-                gain1.connect(lpf);
-                gain2.connect(lpf);
-                lpf.connect(envelope);
-                envelope.connect(panner);
-                panner.connect(this.reverbInput);
-                
-                osc1.start(now);
-                osc2.start(now);
-                osc1.stop(now + 0.8);
-                osc2.stop(now + 0.8);
-                
-                setTimeout(() => {
-                    gain1.disconnect();
-                    gain2.disconnect();
-                    lpf.disconnect();
-                    envelope.disconnect();
-                    panner.disconnect();
-                }, 1000);
-            }
-            
-            // Clavinet - Sharp, percussive clavinet with bright attack
-            playClavinet(freq, amp, pan) {
-                const ctx = this.audioContext;
-                const now = ctx.currentTime;
-                
-                // Square wave for that classic clavinet bark
-                const osc1 = ctx.createOscillator();
-                osc1.type = 'square';
-                osc1.frequency.value = freq;
-                
-                // Add brightness with upper octave
-                const osc2 = ctx.createOscillator();
-                osc2.type = 'square';
-                osc2.frequency.value = freq * 2;
-                
-                // Sub for body
-                const osc3 = ctx.createOscillator();
-                osc3.type = 'triangle';
-                osc3.frequency.value = freq * 0.5;
-                
-                const gain1 = ctx.createGain();
-                const gain2 = ctx.createGain();
-                const gain3 = ctx.createGain();
-                gain1.gain.value = amp * 0.25;
-                gain2.gain.value = amp * 0.1;
-                gain3.gain.value = amp * 0.08;
-                
-                // Band-pass for nasal clavinet character
-                const bpf = ctx.createBiquadFilter();
-                bpf.type = 'bandpass';
-                bpf.frequency.setValueAtTime(Math.min(freq * 4, 3500), now);
-                bpf.frequency.exponentialRampToValueAtTime(Math.min(freq * 2, 1500), now + 0.15);
-                bpf.Q.value = 2.0;
-                
-                // Snappy, short envelope
-                const envelope = ctx.createGain();
-                envelope.gain.setValueAtTime(0, now);
-                envelope.gain.linearRampToValueAtTime(1, now + 0.002);
-                envelope.gain.exponentialRampToValueAtTime(0.001, now + 0.4);
-                
-                const panner = ctx.createStereoPanner();
-                panner.pan.value = pan;
-                
-                osc1.connect(gain1);
-                osc2.connect(gain2);
-                osc3.connect(gain3);
-                gain1.connect(bpf);
-                gain2.connect(bpf);
-                gain3.connect(bpf);
-                bpf.connect(envelope);
-                envelope.connect(panner);
-                panner.connect(this.reverbInput);
-                
-                osc1.start(now);
-                osc2.start(now);
-                osc3.start(now);
-                osc1.stop(now + 0.6);
-                osc2.stop(now + 0.6);
-                osc3.stop(now + 0.6);
-                
-                setTimeout(() => {
-                    gain1.disconnect();
-                    gain2.disconnect();
-                    gain3.disconnect();
-                    bpf.disconnect();
-                    envelope.disconnect();
-                    panner.disconnect();
-                }, 800);
-            }
-            
-            // Funk Guitar - Muted, choppy rhythm guitar with wah-like filter
-            playFunkGuitar(freq, amp, pan) {
-                const ctx = this.audioContext;
-                const now = ctx.currentTime;
-                
-                // Triangle wave for muted guitar pluck
-                const osc1 = ctx.createOscillator();
-                osc1.type = 'triangle';
-                osc1.frequency.value = freq;
-                
-                // Slight detune for thickness
-                const osc2 = ctx.createOscillator();
-                osc2.type = 'sawtooth';
-                osc2.frequency.value = freq * 1.003;
-                
-                const gain1 = ctx.createGain();
-                const gain2 = ctx.createGain();
-                gain1.gain.value = amp * 0.25;
-                gain2.gain.value = amp * 0.1;
-                
-                // Wah-like filter sweep
-                const bpf = ctx.createBiquadFilter();
-                bpf.type = 'bandpass';
-                bpf.frequency.setValueAtTime(Math.min(freq * 6, 3000), now);
-                bpf.frequency.exponentialRampToValueAtTime(Math.min(freq * 1.5, 800), now + 0.2);
-                bpf.Q.value = 3.0;
-                
-                // Choppy, staccato envelope
-                const envelope = ctx.createGain();
-                envelope.gain.setValueAtTime(0, now);
-                envelope.gain.linearRampToValueAtTime(1, now + 0.003);
-                envelope.gain.setValueAtTime(0.6, now + 0.04);
-                envelope.gain.exponentialRampToValueAtTime(0.001, now + 0.25);
-                
-                const panner = ctx.createStereoPanner();
-                panner.pan.value = pan;
-                
-                osc1.connect(gain1);
-                osc2.connect(gain2);
-                gain1.connect(bpf);
-                gain2.connect(bpf);
-                bpf.connect(envelope);
-                envelope.connect(panner);
-                panner.connect(this.reverbInput);
-                
-                osc1.start(now);
-                osc2.start(now);
-                osc1.stop(now + 0.5);
-                osc2.stop(now + 0.5);
-                
-                setTimeout(() => {
-                    gain1.disconnect();
-                    gain2.disconnect();
-                    bpf.disconnect();
-                    envelope.disconnect();
-                    panner.disconnect();
-                }, 700);
-            }
-            
-            // ====================
-            // DISCO FLAVOR INSTRUMENTS (Danceable, bright, rhythmic)
-            // ====================
-            
-            // Disco Bass - Bouncy octave bass with quick slide
-            playDiscoBass(freq, amp, pan) {
-                const ctx = this.audioContext;
-                const now = ctx.currentTime;
-                
-                // Main bass tone
-                const osc1 = ctx.createOscillator();
-                osc1.type = 'sawtooth';
-                osc1.frequency.setValueAtTime(freq * 2, now);
-                osc1.frequency.exponentialRampToValueAtTime(freq, now + 0.06);
-                
-                // Sub octave for depth
-                const osc2 = ctx.createOscillator();
-                osc2.type = 'sine';
-                osc2.frequency.value = freq;
-                
-                const gain1 = ctx.createGain();
-                const gain2 = ctx.createGain();
-                gain1.gain.value = amp * 0.3;
-                gain2.gain.value = amp * 0.2;
-                
-                // Low-pass for round disco bass
-                const lpf = ctx.createBiquadFilter();
-                lpf.type = 'lowpass';
-                lpf.frequency.setValueAtTime(Math.min(freq * 6, 2500), now);
-                lpf.frequency.exponentialRampToValueAtTime(Math.max(freq * 2, 100), now + 0.2);
-                lpf.Q.value = 2.0;
-                
-                // Bouncy envelope with quick decay
-                const envelope = ctx.createGain();
-                envelope.gain.setValueAtTime(0, now);
-                envelope.gain.linearRampToValueAtTime(1, now + 0.008);
-                envelope.gain.setValueAtTime(0.7, now + 0.08);
-                envelope.gain.exponentialRampToValueAtTime(0.001, now + 0.5);
-                
-                const panner = ctx.createStereoPanner();
-                panner.pan.value = pan;
-                
-                osc1.connect(gain1);
-                osc2.connect(gain2);
-                gain1.connect(lpf);
-                gain2.connect(lpf);
-                lpf.connect(envelope);
-                envelope.connect(panner);
-                panner.connect(this.reverbInput);
-                
-                osc1.start(now);
-                osc2.start(now);
-                osc1.stop(now + 0.7);
-                osc2.stop(now + 0.7);
-                
-                setTimeout(() => {
-                    gain1.disconnect();
-                    gain2.disconnect();
-                    lpf.disconnect();
-                    envelope.disconnect();
-                    panner.disconnect();
-                }, 900);
-            }
-            
-            // Disco Strings - Bright, rhythmic string stab with fast attack
-            playDiscoStrings(freq, amp, pan) {
-                const ctx = this.audioContext;
-                const now = ctx.currentTime;
-                
-                // Layered sawtooth for lush string section
-                const detunes = [-8, -3, 0, 3, 8];
-                const oscs = [];
-                const gains = [];
-                
-                for (let i = 0; i < detunes.length; i++) {
-                    const osc = ctx.createOscillator();
-                    osc.type = 'sawtooth';
-                    osc.frequency.value = freq;
-                    osc.detune.value = detunes[i];
-                    const gain = ctx.createGain();
-                    gain.gain.value = amp * 0.12;
-                    osc.connect(gain);
-                    oscs.push(osc);
-                    gains.push(gain);
-                }
-                
-                // Bright low-pass for disco shimmer
-                const lpf = ctx.createBiquadFilter();
-                lpf.type = 'lowpass';
-                lpf.frequency.value = Math.min(freq * 8, 6000);
-                lpf.Q.value = 0.7;
-                
-                // Stab envelope: quick attack, medium sustain, rhythmic release
-                const envelope = ctx.createGain();
-                envelope.gain.setValueAtTime(0, now);
-                envelope.gain.linearRampToValueAtTime(1, now + 0.01);
-                envelope.gain.setValueAtTime(0.7, now + 0.15);
-                envelope.gain.exponentialRampToValueAtTime(0.001, now + 0.8);
-                
-                const panner = ctx.createStereoPanner();
-                panner.pan.value = pan;
-                
-                gains.forEach(g => g.connect(lpf));
-                lpf.connect(envelope);
-                envelope.connect(panner);
-                panner.connect(this.reverbInput);
-                
-                oscs.forEach(osc => osc.start(now));
-                oscs.forEach(osc => osc.stop(now + 1.0));
-                
-                setTimeout(() => {
-                    gains.forEach(g => g.disconnect());
-                    lpf.disconnect();
-                    envelope.disconnect();
-                    panner.disconnect();
-                }, 1200);
-            }
-            
-            // Disco Keys - Bright, percussive piano/clav with rhythmic bounce
-            playDiscoKeys(freq, amp, pan) {
-                const ctx = this.audioContext;
-                const now = ctx.currentTime;
-                
-                // Sine fundamental + bright harmonics for piano-like tone
-                const osc1 = ctx.createOscillator();
-                osc1.type = 'sine';
-                osc1.frequency.value = freq;
-                
-                const osc2 = ctx.createOscillator();
-                osc2.type = 'triangle';
-                osc2.frequency.value = freq * 2;
-                
-                const osc3 = ctx.createOscillator();
-                osc3.type = 'sine';
-                osc3.frequency.value = freq * 3;
-                
-                const gain1 = ctx.createGain();
-                const gain2 = ctx.createGain();
-                const gain3 = ctx.createGain();
-                gain1.gain.value = amp * 0.3;
-                gain2.gain.value = amp * 0.15;
-                gain3.gain.value = amp * 0.05;
-                
-                // Bright filter for sparkle
-                const lpf = ctx.createBiquadFilter();
-                lpf.type = 'lowpass';
-                lpf.frequency.setValueAtTime(Math.min(freq * 10, 8000), now);
-                lpf.frequency.exponentialRampToValueAtTime(Math.min(freq * 3, 3000), now + 0.3);
-                lpf.Q.value = 1.0;
-                
-                // Percussive, bouncy envelope
-                const envelope = ctx.createGain();
-                envelope.gain.setValueAtTime(0, now);
-                envelope.gain.linearRampToValueAtTime(1, now + 0.003);
-                envelope.gain.setValueAtTime(0.5, now + 0.06);
-                envelope.gain.exponentialRampToValueAtTime(0.001, now + 0.5);
-                
-                const panner = ctx.createStereoPanner();
-                panner.pan.value = pan;
-                
-                osc1.connect(gain1);
-                osc2.connect(gain2);
-                osc3.connect(gain3);
-                gain1.connect(lpf);
-                gain2.connect(lpf);
-                gain3.connect(lpf);
-                lpf.connect(envelope);
-                envelope.connect(panner);
-                panner.connect(this.reverbInput);
-                
-                osc1.start(now);
-                osc2.start(now);
-                osc3.start(now);
-                osc1.stop(now + 0.7);
-                osc2.stop(now + 0.7);
-                osc3.stop(now + 0.7);
-                
-                setTimeout(() => {
-                    gain1.disconnect();
-                    gain2.disconnect();
-                    gain3.disconnect();
-                    lpf.disconnect();
-                    envelope.disconnect();
-                    panner.disconnect();
-                }, 900);
-            }
-            
             // Play a note using specified instrument type
             playInstrument(instrumentType, freq, amp, pan, octaveOffset = 0) {
+                if (this.disabledInstruments.has(instrumentType)) return;
                 // Adjust frequency by octave offset
                 const adjustedFreq = freq * Math.pow(2, octaveOffset);
                 
@@ -2062,17 +1552,6 @@
                         this.playWindPad(adjustedFreq, amp, pan);
                         break;
                     
-                    // Percussive flavor instruments (Vibraphone Ensemble)
-                    case 'vibraphone':
-                        this.playVibraphone(adjustedFreq, amp, pan);
-                        break;
-                    case 'marimba':
-                        this.playMarimba(adjustedFreq, amp, pan);
-                        break;
-                    case 'glockenspiel':
-                        this.playGlockenspiel(adjustedFreq, amp, pan);
-                        break;
-                    
                     // Ethereal flavor instruments (The Sea and Cake)
                     case 'cleanGuitar':
                         this.playCleanGuitar(adjustedFreq, amp, pan);
@@ -2082,28 +1561,6 @@
                         break;
                     case 'shimmerChorus':
                         this.playShimmerChorus(adjustedFreq, amp, pan);
-                        break;
-                    
-                    // Funk flavor instruments
-                    case 'funkBass':
-                        this.playFunkBass(adjustedFreq, amp, pan);
-                        break;
-                    case 'clavinet':
-                        this.playClavinet(adjustedFreq, amp, pan);
-                        break;
-                    case 'funkGuitar':
-                        this.playFunkGuitar(adjustedFreq, amp, pan);
-                        break;
-                    
-                    // Disco flavor instruments
-                    case 'discoBass':
-                        this.playDiscoBass(adjustedFreq, amp, pan);
-                        break;
-                    case 'discoStrings':
-                        this.playDiscoStrings(adjustedFreq, amp, pan);
-                        break;
-                    case 'discoKeys':
-                        this.playDiscoKeys(adjustedFreq, amp, pan);
                         break;
                     
                     default:
@@ -2206,9 +1663,21 @@
             }
             
             setFlavor(flavor) {
-                // Flavor only controls instrumentation and BLE-to-tone mapping
-                // Volume, key, scale, and movement are user parameters — not changed by flavor
                 this.currentFlavor = flavor;
+                // Each flavor adjusts reverb and stereo character
+                const flavorSettings = {
+                    melodic: { reverbDecay: 3.0, reverbMix: 0.4, stereoWidth: 0.6 },
+                    ambient: { reverbDecay: 5.0, reverbMix: 0.6, stereoWidth: 0.9 },
+                    ethereal: { reverbDecay: 2.0, reverbMix: 0.25, stereoWidth: 0.4 }
+                };
+                const s = flavorSettings[flavor] || flavorSettings.melodic;
+                // Update reverb wet/dry mix
+                if (this.reverbGain) {
+                    this.reverbGain.gain.setTargetAtTime(s.reverbMix, this.audioContext.currentTime, 0.3);
+                }
+                if (this.dryGain) {
+                    this.dryGain.gain.setTargetAtTime(1.0 - s.reverbMix, this.audioContext.currentTime, 0.3);
+                }
             }
             
             updateRootNoteDisplay(midiNote) {
@@ -2298,7 +1767,7 @@
                 const sliderVal = this.bleTones.config.movementThreshold;
                 this.config = {
                     movementThreshold: BLEScanner.sliderToBleThreshold(sliderVal),
-                    minStrikeInterval: 300,  // ms between strikes per device
+                    minStrikeInterval: this.bleTones.config.minStrikeInterval,  // ms, synced from BPM slider
                     deviceTimeout: 5000      // Remove devices not seen for 5s
                 };
                 
@@ -2747,7 +2216,7 @@
                     
                     // Validate and apply flavor
                     if (settings.flavor !== undefined) {
-                        const validFlavors = ['melodic', 'ambient', 'percussive', 'ethereal', 'funk', 'disco'];
+                        const validFlavors = ['melodic', 'ambient', 'ethereal'];
                         if (validFlavors.includes(settings.flavor)) {
                             flavorButtons.forEach(btn => {
                                 if (btn.dataset.flavor === settings.flavor) {
@@ -2765,11 +2234,20 @@
                         bpmSlider.value = bpm;
                         bpmValue.textContent = bpm;
                         bleTones.config.minStrikeInterval = Math.round(60000 / bpm);
+                        syncBpmToScanner();
+                    }
+                    
+                    if (settings.disabledInstruments && Array.isArray(settings.disabledInstruments)) {
+                        bleTones.disabledInstruments = new Set(settings.disabledInstruments);
                     }
                 } catch (e) {
                     console.error('Failed to load settings:', e);
                 }
             }
+        }
+
+        function syncBpmToScanner() {
+            if (window.bleScanner) window.bleScanner.config.minStrikeInterval = bleTones.config.minStrikeInterval;
         }
 
         // Save settings to localStorage
@@ -2780,7 +2258,8 @@
                 threshold: parseFloat(thresholdSlider.value),
                 bpm: parseInt(bpmSlider.value),
                 scale: scaleSelect.value,
-                flavor: bleTones.currentFlavor
+                flavor: bleTones.currentFlavor,
+                disabledInstruments: Array.from(bleTones.disabledInstruments)
             };
             localStorage.setItem('bleTonesSettings', JSON.stringify(settings));
         }
@@ -2841,15 +2320,49 @@
             const bpm = parseInt(e.target.value);
             bpmValue.textContent = bpm;
             bleTones.config.minStrikeInterval = Math.round(60000 / bpm);
+            syncBpmToScanner();
             saveSettings();
         });
 
         // Flavor buttons
+        function updateInstrumentToggles() {
+            const container = document.getElementById('instrument-toggle-group');
+            if (!container) return;
+            container.innerHTML = '';
+            const flavor = bleTones.currentFlavor;
+            const deviceMap = bleTones.deviceMaps[flavor];
+            const instruments = new Set();
+            Object.values(deviceMap).forEach(v => instruments.add(v.type));
+            instruments.forEach(type => {
+                const div = document.createElement('div');
+                div.className = 'instrument-toggle';
+                const checkbox = document.createElement('input');
+                checkbox.type = 'checkbox';
+                checkbox.id = 'inst-' + type;
+                checkbox.checked = !bleTones.disabledInstruments.has(type);
+                checkbox.addEventListener('change', () => {
+                    if (checkbox.checked) {
+                        bleTones.disabledInstruments.delete(type);
+                    } else {
+                        bleTones.disabledInstruments.add(type);
+                    }
+                    saveSettings();
+                });
+                const label = document.createElement('label');
+                label.htmlFor = 'inst-' + type;
+                label.textContent = bleTones.instrumentNames[type] || type;
+                div.appendChild(checkbox);
+                div.appendChild(label);
+                container.appendChild(div);
+            });
+        }
+
         flavorButtons.forEach(btn => {
             btn.addEventListener('click', () => {
                 flavorButtons.forEach(b => b.classList.remove('active'));
                 btn.classList.add('active');
                 bleTones.setFlavor(btn.dataset.flavor);
+                updateInstrumentToggles();
                 saveSettings();
             });
         });
@@ -2857,6 +2370,7 @@
         // Initialize settings on page load
         window.addEventListener('load', () => {
             loadSettings();
+            updateInstrumentToggles();
         });
 
     </script>

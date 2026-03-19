@@ -7,7 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		FD4979EE9A02589FBDB12FFD /* bleTonessApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = A563B4345A255E078895892A /* bleTonessApp.swift */; };
+		FD4979EE9A02589FBDB12FFD /* bleTonesApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = A563B4345A255E078895892A /* bleTonesApp.swift */; };
 		4E748FBE9B1B5D11B9D62707 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 75F7C1BEBD6E557E8D0D8905 /* ContentView.swift */; };
 		F5CCC6B507765EEE8076C3EF /* ScanView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 178BE3A866485E4AAC83E152 /* ScanView.swift */; };
 		2A812B841512592C8AE0DE34 /* DeviceDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0E795341B3525F8B904B3CB3 /* DeviceDetailView.swift */; };
@@ -30,7 +30,7 @@
 
 /* Begin PBXFileReference section */
 		0ECE9C464DA1573199AD07B4 /* bleTones.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = bleTones.app; sourceTree = BUILT_PRODUCTS_DIR; };
-		A563B4345A255E078895892A /* bleTonessApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = bleTonessApp.swift; sourceTree = "<group>"; };
+		A563B4345A255E078895892A /* bleTonesApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = bleTonesApp.swift; sourceTree = "<group>"; };
 		75F7C1BEBD6E557E8D0D8905 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
 		178BE3A866485E4AAC83E152 /* ScanView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScanView.swift; sourceTree = "<group>"; };
 		0E795341B3525F8B904B3CB3 /* DeviceDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeviceDetailView.swift; sourceTree = "<group>"; };
@@ -82,7 +82,7 @@
 		6B8945B2A32454D0A6CA97A5 /* bleTones */ = {
 			isa = PBXGroup;
 			children = (
-				A563B4345A255E078895892A /* bleTonessApp.swift */,
+				A563B4345A255E078895892A /* bleTonesApp.swift */,
 				F066E9217A7A563B8AFE52AF /* Models */,
 				2965300A26245178B5DE88DC /* Services */,
 				F11DB5A7EC6B527C8E7084BF /* Views */,
@@ -198,7 +198,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				FD4979EE9A02589FBDB12FFD /* bleTonessApp.swift in Sources */,
+				FD4979EE9A02589FBDB12FFD /* bleTonesApp.swift in Sources */,
 				4E748FBE9B1B5D11B9D62707 /* ContentView.swift in Sources */,
 				F5CCC6B507765EEE8076C3EF /* ScanView.swift in Sources */,
 				2A812B841512592C8AE0DE34 /* DeviceDetailView.swift in Sources */,

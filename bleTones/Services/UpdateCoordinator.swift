@@ -94,8 +94,11 @@ final class UpdateCoordinator: ObservableObject {
                 audioEngine.setVoice(id: id, freq: freq, targetAmp: amp,
                                      pan: mapping.pan, waveform: mapping.waveform)
             } else if stale {
-                // Ramp amplitude to 0 (engine will smooth)
-                audioEngine.setVoice(id: id, freq: 0, targetAmp: 0,
+                // Ramp amplitude to 0 (engine will smooth); keep a valid frequency
+                let staleFreq = mapping.midiEnableNotes
+                    ? noteToHz(mapping.midiNoteNumber)
+                    : mapping.baseFrequencyHz
+                audioEngine.setVoice(id: id, freq: staleFreq, targetAmp: 0,
                                      pan: mapping.pan, waveform: mapping.waveform)
             }
 

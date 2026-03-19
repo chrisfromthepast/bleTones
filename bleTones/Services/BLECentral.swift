@@ -21,6 +21,7 @@ final class BLECentral: NSObject, ObservableObject {
     private var discovered: [UUID: DiscoveredDevice] = [:]
     private let queue = DispatchQueue(label: "ble.central.queue")
     private var throttleTimer: Timer?
+    /// Protected by `queue`; set on BLE queue, read on main thread via `queue.sync`.
     private var dirtyDiscovered = false
 
     // MARK: - Init
@@ -63,10 +64,13 @@ final class BLECentral: NSObject, ObservableObject {
     }
 
     private func rebuildUIList() {
-        guard dirtyDiscovered else { return }
-        dirtyDiscovered = false
+        let (isDirty, snapshot): (Bool, [DiscoveredDevice]) = queue.sync {
+            let dirty = dirtyDiscovered
+            dirtyDiscovered = false
+            return (dirty, Array(discovered.values))
+        }
+        guard isDirty else { return }
 
-        let snapshot: [DiscoveredDevice] = queue.sync { Array(discovered.values) }
         let store = deviceStore
 
         let items: [DiscoveredListItem] = snapshot.map { dev in

@@ -116,4 +116,10 @@ final class DeviceStore: ObservableObject {
             self.persistToDisk()
         }
     }
+
+    deinit {
+        flushTimer?.invalidate()
+        flushTimer = nil
+        if isDirty { persistToDisk() }
+    }
 }

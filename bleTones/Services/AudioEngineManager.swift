@@ -47,15 +47,20 @@ final class AudioEngineManager: ObservableObject {
     // MARK: - Engine setup
 
     private func setupEngine() {
-        let format = AVAudioFormat(standardFormatWithSampleRate: sampleRate, channels: 2)!
+        guard let format = AVAudioFormat(standardFormatWithSampleRate: sampleRate, channels: 2) else {
+            print("[AudioEngineManager] failed to create audio format")
+            return
+        }
 
         sourceNode = AVAudioSourceNode(format: format) { [weak self] _, _, frameCount, bufferList -> OSStatus in
             guard let self else { return noErr }
             let ablPointer = UnsafeMutableAudioBufferListPointer(bufferList)
-            guard ablPointer.count >= 2 else { return noErr }
+            guard ablPointer.count >= 2,
+                  let leftData = ablPointer[0].mData,
+                  let rightData = ablPointer[1].mData else { return noErr }
 
-            let leftBuf = ablPointer[0].mData!.assumingMemoryBound(to: Float.self)
-            let rightBuf = ablPointer[1].mData!.assumingMemoryBound(to: Float.self)
+            let leftBuf = leftData.assumingMemoryBound(to: Float.self)
+            let rightBuf = rightData.assumingMemoryBound(to: Float.self)
             let frames = Int(frameCount)
 
             // Zero buffers
@@ -129,27 +134,27 @@ final class AudioEngineManager: ObservableObject {
     /// Called from UpdateCoordinator on each tick for each active device.
     func setVoice(id: UUID, freq: Double, targetAmp: Double, pan: Double, waveform: Waveform) {
         voiceLock.lock()
+        defer { voiceLock.unlock() }
         if var voice = voices[id] {
-            voice.frequency = freq
+            voice.frequency = max(freq, 1.0) // guard against zero frequency
             voice.targetAmplitude = targetAmp
             voice.pan = pan
             voice.waveform = waveform
             voices[id] = voice
         } else {
-            voices[id] = SynthVoice(frequency: freq,
+            voices[id] = SynthVoice(frequency: max(freq, 1.0),
                                     targetAmplitude: targetAmp,
                                     currentAmplitude: 0,
                                     pan: pan,
                                     waveform: waveform,
                                     phase: 0)
         }
-        voiceLock.unlock()
     }
 
     /// Remove a voice (device no longer active).
     func removeVoice(id: UUID) {
         voiceLock.lock()
+        defer { voiceLock.unlock() }
         voices.removeValue(forKey: id)
-        voiceLock.unlock()
     }
 }

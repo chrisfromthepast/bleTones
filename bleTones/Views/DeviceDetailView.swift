@@ -13,13 +13,14 @@ struct DeviceDetailView: View {
         Form {
             if let device {
                 Section("Name") {
-                    TextField("Device name", text: $editedName, onCommit: {
-                        let trimmed = editedName.trimmingCharacters(in: .whitespaces)
-                        if !trimmed.isEmpty {
-                            deviceStore.rename(id: deviceID, name: trimmed)
+                    TextField("Device name", text: $editedName)
+                        .onSubmit {
+                            let trimmed = editedName.trimmingCharacters(in: .whitespaces)
+                            if !trimmed.isEmpty {
+                                deviceStore.rename(id: deviceID, name: trimmed)
+                            }
                         }
-                    })
-                    .onAppear { editedName = device.userName }
+                        .onAppear { editedName = device.userName }
                 }
 
                 Section("Status") {

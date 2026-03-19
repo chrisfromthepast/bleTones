@@ -1,7 +1,7 @@
 import SwiftUI
 
 @main
-struct bleTonessApp: App {
+struct bleTonesApp: App {
     @StateObject private var deviceStore = DeviceStore()
     @StateObject private var bleCentral = BLECentral()
     @StateObject private var midiManager = MIDIManager()

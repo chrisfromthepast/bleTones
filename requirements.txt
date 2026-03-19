@@ -1,0 +1,12 @@
+# Python dependencies for bleTones
+# Install with: pip install -r requirements.txt
+
+# For main.py (Desktop App with embedded browser)
+eel>=0.14.0
+bleak>=0.20.0
+
+# For supercollider/bridge.py (OSC bridge to SuperCollider)
+python-osc>=1.8.0
+
+# For building standalone executables (optional)
+pyinstaller>=5.0.0

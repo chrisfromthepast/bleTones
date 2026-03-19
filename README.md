@@ -2,6 +2,8 @@
 
 A generative sound experience that creates beautiful, organic music through interaction with Bluetooth devices or mouse/touch input.
 
+> **📦 Python Version Archive:** This repository contains the Python-heavy version (v1.0.0-python). For accessing the archived release, see [PYTHON_ARCHIVE.md](PYTHON_ARCHIVE.md) and [RELEASE_NOTES.md](RELEASE_NOTES.md).
+
 ## 🚀 Quick Start
 
 ### Standalone Python Desktop App (Recommended)

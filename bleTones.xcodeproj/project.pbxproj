@@ -1,0 +1,367 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 56;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		FD4979EE9A02589FBDB12FFD /* bleTonessApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = A563B4345A255E078895892A /* bleTonessApp.swift */; };
+		4E748FBE9B1B5D11B9D62707 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 75F7C1BEBD6E557E8D0D8905 /* ContentView.swift */; };
+		F5CCC6B507765EEE8076C3EF /* ScanView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 178BE3A866485E4AAC83E152 /* ScanView.swift */; };
+		2A812B841512592C8AE0DE34 /* DeviceDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0E795341B3525F8B904B3CB3 /* DeviceDetailView.swift */; };
+		27EFD1476C6653F29C6EE554 /* DeviceMappingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1FFAD3F8D7A252B089148349 /* DeviceMappingView.swift */; };
+		39C0AD6973835214B032461F /* MIDIDestinationsPickerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 85F6859C8D515436A94DE185 /* MIDIDestinationsPickerView.swift */; };
+		C38312CFCCE55E4492D02812 /* MappingsListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CEA834D23D015795A21D55F2 /* MappingsListView.swift */; };
+		3B168ABBF129588E97555232 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 153DFC20C9E55565821C13F4 /* SettingsView.swift */; };
+		9FA47ACB6F8351858D9B994B /* DeviceMapping.swift in Sources */ = {isa = PBXBuildFile; fileRef = C4538028FA8E55B5B68BD620 /* DeviceMapping.swift */; };
+		CB392A8F781550F79808F5B4 /* KnownDevice.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8BD421B2B0A55FDAB8C543C4 /* KnownDevice.swift */; };
+		F528F56BFC605583A4C83B77 /* DiscoveredDevice.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0BC1984B74E95757AFAD81E1 /* DiscoveredDevice.swift */; };
+		ADDECF34951F5816B4FC4D5C /* MIDIDestinationInfo.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1FD2D4C242BB59A99B9A9676 /* MIDIDestinationInfo.swift */; };
+		6F446E5644825BA1BEE63354 /* DeviceStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = FE2DDEABE5C95C56A11F26DC /* DeviceStore.swift */; };
+		2490989902195408BE71D2C9 /* BLECentral.swift in Sources */ = {isa = PBXBuildFile; fileRef = 48C330804F775B2D9044CA48 /* BLECentral.swift */; };
+		1488849FE4D95AF9968B16EE /* MIDIManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9942064F23A15259963CBA58 /* MIDIManager.swift */; };
+		7D93BF862FB25977BAF91CB1 /* AudioEngineManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2011B75182F35A698E9CFB3D /* AudioEngineManager.swift */; };
+		0F327744A4F8597B8B480CFD /* UpdateCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8C645176BB9B588D8F0FB764 /* UpdateCoordinator.swift */; };
+		6F6E79367C1854BF9B769C76 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = F32CA5B7E3A15F88959E385D /* Assets.xcassets */; };
+		D6BF46D3656157328D8649C2 /* Preview Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = FFC4043E8B3E5C29A8766369 /* Preview Assets.xcassets */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXFileReference section */
+		0ECE9C464DA1573199AD07B4 /* bleTones.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = bleTones.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		A563B4345A255E078895892A /* bleTonessApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = bleTonessApp.swift; sourceTree = "<group>"; };
+		75F7C1BEBD6E557E8D0D8905 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
+		178BE3A866485E4AAC83E152 /* ScanView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScanView.swift; sourceTree = "<group>"; };
+		0E795341B3525F8B904B3CB3 /* DeviceDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeviceDetailView.swift; sourceTree = "<group>"; };
+		1FFAD3F8D7A252B089148349 /* DeviceMappingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeviceMappingView.swift; sourceTree = "<group>"; };
+		85F6859C8D515436A94DE185 /* MIDIDestinationsPickerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MIDIDestinationsPickerView.swift; sourceTree = "<group>"; };
+		CEA834D23D015795A21D55F2 /* MappingsListView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MappingsListView.swift; sourceTree = "<group>"; };
+		153DFC20C9E55565821C13F4 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
+		C4538028FA8E55B5B68BD620 /* DeviceMapping.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeviceMapping.swift; sourceTree = "<group>"; };
+		8BD421B2B0A55FDAB8C543C4 /* KnownDevice.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KnownDevice.swift; sourceTree = "<group>"; };
+		0BC1984B74E95757AFAD81E1 /* DiscoveredDevice.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DiscoveredDevice.swift; sourceTree = "<group>"; };
+		1FD2D4C242BB59A99B9A9676 /* MIDIDestinationInfo.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MIDIDestinationInfo.swift; sourceTree = "<group>"; };
+		FE2DDEABE5C95C56A11F26DC /* DeviceStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeviceStore.swift; sourceTree = "<group>"; };
+		48C330804F775B2D9044CA48 /* BLECentral.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BLECentral.swift; sourceTree = "<group>"; };
+		9942064F23A15259963CBA58 /* MIDIManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MIDIManager.swift; sourceTree = "<group>"; };
+		2011B75182F35A698E9CFB3D /* AudioEngineManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioEngineManager.swift; sourceTree = "<group>"; };
+		8C645176BB9B588D8F0FB764 /* UpdateCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UpdateCoordinator.swift; sourceTree = "<group>"; };
+		F32CA5B7E3A15F88959E385D /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		FFC4043E8B3E5C29A8766369 /* Preview Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = "Preview Assets.xcassets"; sourceTree = "<group>"; };
+		47C684D681C05E8CA8B38683 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		A8A1E055485F51BABE46CDBD /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		B39A941E5DAC5501A6414203 = {
+			isa = PBXGroup;
+			children = (
+				6B8945B2A32454D0A6CA97A5 /* bleTones */,
+				065EDC647D2055509AFC6049 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		065EDC647D2055509AFC6049 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				0ECE9C464DA1573199AD07B4 /* bleTones.app */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		6B8945B2A32454D0A6CA97A5 /* bleTones */ = {
+			isa = PBXGroup;
+			children = (
+				A563B4345A255E078895892A /* bleTonessApp.swift */,
+				F066E9217A7A563B8AFE52AF /* Models */,
+				2965300A26245178B5DE88DC /* Services */,
+				F11DB5A7EC6B527C8E7084BF /* Views */,
+				F32CA5B7E3A15F88959E385D /* Assets.xcassets */,
+				47C684D681C05E8CA8B38683 /* Info.plist */,
+				ECF6E0F6E1D6563DA860CD5C /* Preview Content */,
+			);
+			path = bleTones;
+			sourceTree = "<group>";
+		};
+		F066E9217A7A563B8AFE52AF /* Models */ = {
+			isa = PBXGroup;
+			children = (
+				C4538028FA8E55B5B68BD620 /* DeviceMapping.swift */,
+				8BD421B2B0A55FDAB8C543C4 /* KnownDevice.swift */,
+				0BC1984B74E95757AFAD81E1 /* DiscoveredDevice.swift */,
+				1FD2D4C242BB59A99B9A9676 /* MIDIDestinationInfo.swift */,
+			);
+			path = Models;
+			sourceTree = "<group>";
+		};
+		2965300A26245178B5DE88DC /* Services */ = {
+			isa = PBXGroup;
+			children = (
+				FE2DDEABE5C95C56A11F26DC /* DeviceStore.swift */,
+				48C330804F775B2D9044CA48 /* BLECentral.swift */,
+				9942064F23A15259963CBA58 /* MIDIManager.swift */,
+				2011B75182F35A698E9CFB3D /* AudioEngineManager.swift */,
+				8C645176BB9B588D8F0FB764 /* UpdateCoordinator.swift */,
+			);
+			path = Services;
+			sourceTree = "<group>";
+		};
+		F11DB5A7EC6B527C8E7084BF /* Views */ = {
+			isa = PBXGroup;
+			children = (
+				75F7C1BEBD6E557E8D0D8905 /* ContentView.swift */,
+				178BE3A866485E4AAC83E152 /* ScanView.swift */,
+				0E795341B3525F8B904B3CB3 /* DeviceDetailView.swift */,
+				1FFAD3F8D7A252B089148349 /* DeviceMappingView.swift */,
+				85F6859C8D515436A94DE185 /* MIDIDestinationsPickerView.swift */,
+				CEA834D23D015795A21D55F2 /* MappingsListView.swift */,
+				153DFC20C9E55565821C13F4 /* SettingsView.swift */,
+			);
+			path = Views;
+			sourceTree = "<group>";
+		};
+		ECF6E0F6E1D6563DA860CD5C /* Preview Content */ = {
+			isa = PBXGroup;
+			children = (
+				FFC4043E8B3E5C29A8766369 /* Preview Assets.xcassets */,
+			);
+			path = "Preview Content";
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		1CA54DAE24FF51CCBDE5014A /* bleTones */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 605022F98CE45C43857C5E2F /* Build configuration list for PBXNativeTarget "bleTones" */;
+			buildPhases = (
+				90521FC8D5EC51F58F421D29 /* Sources */,
+				A8A1E055485F51BABE46CDBD /* Frameworks */,
+				E8886C85D5065870868D1830 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = bleTones;
+			productName = bleTones;
+			productReference = 0ECE9C464DA1573199AD07B4 /* bleTones.app */;
+			productType = "com.apple.product-type.application";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		A8C58DC51B925059AE67C20F /* Project object */ = {
+			isa = PBXProject;
+			buildConfigurationList = FF697ADE67445259963F6BE8 /* Build configuration list for PBXProject "bleTones" */;
+			compatibilityVersion = "Xcode 14.0";
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				en,
+				Base,
+			);
+			mainGroup = B39A941E5DAC5501A6414203;
+			productRefGroup = 065EDC647D2055509AFC6049 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				1CA54DAE24FF51CCBDE5014A /* bleTones */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		E8886C85D5065870868D1830 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				6F6E79367C1854BF9B769C76 /* Assets.xcassets in Resources */,
+				D6BF46D3656157328D8649C2 /* Preview Assets.xcassets in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		90521FC8D5EC51F58F421D29 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				FD4979EE9A02589FBDB12FFD /* bleTonessApp.swift in Sources */,
+				4E748FBE9B1B5D11B9D62707 /* ContentView.swift in Sources */,
+				F5CCC6B507765EEE8076C3EF /* ScanView.swift in Sources */,
+				2A812B841512592C8AE0DE34 /* DeviceDetailView.swift in Sources */,
+				27EFD1476C6653F29C6EE554 /* DeviceMappingView.swift in Sources */,
+				39C0AD6973835214B032461F /* MIDIDestinationsPickerView.swift in Sources */,
+				C38312CFCCE55E4492D02812 /* MappingsListView.swift in Sources */,
+				3B168ABBF129588E97555232 /* SettingsView.swift in Sources */,
+				9FA47ACB6F8351858D9B994B /* DeviceMapping.swift in Sources */,
+				CB392A8F781550F79808F5B4 /* KnownDevice.swift in Sources */,
+				F528F56BFC605583A4C83B77 /* DiscoveredDevice.swift in Sources */,
+				ADDECF34951F5816B4FC4D5C /* MIDIDestinationInfo.swift in Sources */,
+				6F446E5644825BA1BEE63354 /* DeviceStore.swift in Sources */,
+				2490989902195408BE71D2C9 /* BLECentral.swift in Sources */,
+				1488849FE4D95AF9968B16EE /* MIDIManager.swift in Sources */,
+				7D93BF862FB25977BAF91CB1 /* AudioEngineManager.swift in Sources */,
+				0F327744A4F8597B8B480CFD /* UpdateCoordinator.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin XCBuildConfiguration section */
+		BEA088467EB25B149D7AFAAD /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"DEBUG=1",
+					"$(inherited)",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				SDKROOT = iphoneos;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+			};
+			name = Debug;
+		};
+		60EB57C955175468B4086540 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				SDKROOT = iphoneos;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				VALIDATE_PRODUCT = YES;
+			};
+			name = Release;
+		};
+		3E2DFD42B2D25EE79D687820 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_ASSET_PATHS = ""bleTones/Preview Content"";
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = bleTones/Info.plist;
+				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
+				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
+				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.chrisfromthepast.bletones;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		8573B0D1F82C57B19A258218 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_ASSET_PATHS = ""bleTones/Preview Content"";
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = bleTones/Info.plist;
+				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
+				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
+				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.chrisfromthepast.bletones;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		FF697ADE67445259963F6BE8 /* Build configuration list for PBXProject "bleTones" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				BEA088467EB25B149D7AFAAD /* Debug */,
+				60EB57C955175468B4086540 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		605022F98CE45C43857C5E2F /* Build configuration list for PBXNativeTarget "bleTones" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				3E2DFD42B2D25EE79D687820 /* Debug */,
+				8573B0D1F82C57B19A258218 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+
+	};
+	rootObject = A8C58DC51B925059AE67C20F /* Project object */;
+}

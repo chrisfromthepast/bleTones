@@ -1,0 +1,135 @@
+import Foundation
+import CoreMIDI
+
+/// Manages a CoreMIDI virtual source ("bleTones MIDI Out"), an output port,
+/// and destination enumeration for per-device routing.
+final class MIDIManager: ObservableObject {
+
+    // MARK: Published
+
+    @Published var destinations: [MIDIDestinationInfo] = []
+
+    // MARK: CoreMIDI refs
+
+    private var client: MIDIClientRef = 0
+    private var virtualSource: MIDIEndpointRef = 0
+    private var outputPort: MIDIPortRef = 0
+
+    // MARK: - Init
+
+    init() {
+        setupMIDI()
+        refreshDestinations()
+    }
+
+    // MARK: - Setup
+
+    private func setupMIDI() {
+        var status = MIDIClientCreateWithBlock("bleTones" as CFString, &client) { [weak self] notification in
+            // Refresh destinations when MIDI setup changes
+            DispatchQueue.main.async { self?.refreshDestinations() }
+        }
+        guard status == noErr else {
+            print("[MIDIManager] client create error: \(status)")
+            return
+        }
+
+        status = MIDISourceCreateWithProtocol(
+            client,
+            "bleTones MIDI Out" as CFString,
+            ._1_0,
+            &virtualSource
+        )
+        if status != noErr {
+            print("[MIDIManager] virtual source create error: \(status)")
+        }
+
+        status = MIDIOutputPortCreate(client, "bleTones Output" as CFString, &outputPort)
+        if status != noErr {
+            print("[MIDIManager] output port create error: \(status)")
+        }
+    }
+
+    // MARK: - Destination enumeration
+
+    func refreshDestinations() {
+        var list: [MIDIDestinationInfo] = []
+        let count = MIDIGetNumberOfDestinations()
+        for i in 0..<count {
+            let endpoint = MIDIGetDestination(i)
+            var nameRef: Unmanaged<CFString>?
+            MIDIObjectGetStringProperty(endpoint, kMIDIPropertyName, &nameRef)
+            let name = (nameRef?.takeRetainedValue() as String?) ?? "Unknown"
+            var uniqueID: Int32 = 0
+            MIDIObjectGetIntegerProperty(endpoint, kMIDIPropertyUniqueID, &uniqueID)
+            list.append(MIDIDestinationInfo(name: name, uniqueID: String(uniqueID)))
+        }
+        DispatchQueue.main.async {
+            self.destinations = list
+        }
+    }
+
+    // MARK: - Resolve per-device destinations
+
+    func resolveDestinations(uids: [String]) -> [MIDIEndpointRef] {
+        var results: [MIDIEndpointRef] = []
+        let count = MIDIGetNumberOfDestinations()
+        for i in 0..<count {
+            let endpoint = MIDIGetDestination(i)
+            var uniqueID: Int32 = 0
+            MIDIObjectGetIntegerProperty(endpoint, kMIDIPropertyUniqueID, &uniqueID)
+            if uids.contains(String(uniqueID)) {
+                results.append(endpoint)
+            }
+        }
+        return results
+    }
+
+    // MARK: - Send MIDI
+
+    /// Send a CC message.
+    func sendCC(channel: Int, cc: Int, value: Int,
+                sendToVirtualOut: Bool, destinationUIDs: [String]) {
+        let status = UInt8(0xB0 | ((channel - 1) & 0x0F))
+        let bytes: [UInt8] = [status, UInt8(cc & 0x7F), UInt8(value & 0x7F)]
+        send(bytes: bytes, sendToVirtualOut: sendToVirtualOut, destinationUIDs: destinationUIDs)
+    }
+
+    /// Send a NoteOn message.
+    func sendNoteOn(channel: Int, note: Int, velocity: Int,
+                    sendToVirtualOut: Bool, destinationUIDs: [String]) {
+        let status = UInt8(0x90 | ((channel - 1) & 0x0F))
+        let bytes: [UInt8] = [status, UInt8(note & 0x7F), UInt8(velocity & 0x7F)]
+        send(bytes: bytes, sendToVirtualOut: sendToVirtualOut, destinationUIDs: destinationUIDs)
+    }
+
+    /// Send a NoteOff message.
+    func sendNoteOff(channel: Int, note: Int,
+                     sendToVirtualOut: Bool, destinationUIDs: [String]) {
+        let status = UInt8(0x80 | ((channel - 1) & 0x0F))
+        let bytes: [UInt8] = [status, UInt8(note & 0x7F), 0]
+        send(bytes: bytes, sendToVirtualOut: sendToVirtualOut, destinationUIDs: destinationUIDs)
+    }
+
+    // MARK: - Internal send
+
+    private func send(bytes: [UInt8], sendToVirtualOut: Bool, destinationUIDs: [String]) {
+        var packetList = MIDIPacketList()
+        var packet = MIDIPacketListInit(&packetList)
+        packet = MIDIPacketListAdd(&packetList,
+                                   MemoryLayout<MIDIPacketList>.size,
+                                   packet,
+                                   0, // now
+                                   bytes.count,
+                                   bytes)
+
+        if sendToVirtualOut && virtualSource != 0 {
+            MIDIReceived(virtualSource, &packetList)
+        }
+
+        let endpoints = resolveDestinations(uids: destinationUIDs)
+        for endpoint in endpoints {
+            MIDISend(outputPort, endpoint, &packetList)
+        }
+    }
+}

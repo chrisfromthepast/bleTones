@@ -224,7 +224,7 @@ chrisfromthepast
 
 ## 🔮 Future Plans
 
-This Python-heavy version is being archived before a major refactor to experiment with a new language implementation. All functionality documented here represents the stable, feature-complete Python/JavaScript/Node.js version of bleTones.
+The Swift iOS rewrite has been abandoned due to iOS background BLE scanning restrictions (see [PLATFORM_LIMITATIONS.md](PLATFORM_LIMITATIONS.md)). The next iteration of bleTones will be a **JUCE C++ desktop plugin** (VST3/AU) paired with a BLE helper process, targeting musicians and creatives using DAWs. The existing `supercollider/bridge.py` OSC pipeline serves as the prototype for this architecture.
 
 ## 📞 Support
 

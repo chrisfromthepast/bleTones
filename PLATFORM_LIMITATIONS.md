@@ -187,7 +187,7 @@ Split the system into two processes:
 
 ### Remaining Questions
 
-1. **Standalone mode:** JUCE also builds standalone desktop apps (not just plugins). Could skip the DAW entirely and build a menu-bar app with built-in BLE — no helper needed.
+1. **Standalone mode:** JUCE also builds standalone desktop apps (not just plugins). A standalone app has its own Info.plist, so it can include `NSBluetoothAlwaysUsageDescription` directly — eliminating the two-process architecture entirely.
 2. **Helper bundling:** Should the BLE helper be a Python script (reuse `bridge.py`) or a native Swift/C++ app for cleaner distribution?
 3. **MIDI vs. OSC:** OSC is more flexible (float RSSI values, device names), but MIDI CC is universally supported by every DAW without a plugin.
 
@@ -195,7 +195,7 @@ Split the system into two processes:
 
 - [Apple CoreBluetooth Background Processing](https://developer.apple.com/library/archive/documentation/NetworkingInternetWeb/Conceptual/CoreBluetooth_concepts/CoreBluetoothBackgroundProcessingForIOSApps/PerformingTasksWhileYourAppIsInTheBackground.html)
 - [Apple App Store Review Guidelines §5.1.1](https://developer.apple.com/app-store/review/guidelines/#data-collection-and-storage)
-- [Android Bluetooth Permissions (API 31+)](https://developer.android.com/develop/connectivity/bluetooth/bt-permissions)
+- [Android Bluetooth Permissions (API 31+)](https://developer.android.com/develop/connectivity/bluetooth/bt-permissions) — included for reference; Android has similar restrictions to iOS (background scan throttling, MAC randomization) but is not a current target
 - [CBCentralManagerScanOptionAllowDuplicatesKey behavior in background](https://developer.apple.com/documentation/corebluetooth/cbcentralmanagerscanoptionallowduplicateskey)
 - [JUCE Framework](https://juce.com/)
 - [JUCE OSC Module](https://docs.juce.com/master/group__juce__osc.html)

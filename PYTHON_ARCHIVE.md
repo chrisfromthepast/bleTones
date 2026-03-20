@@ -6,7 +6,7 @@ This document provides instructions for accessing and using the archived Python-
 
 **Version:** v1.0.0-python  
 **Release Date:** March 19, 2026  
-**Purpose:** Archive snapshot before major language refactor  
+**Purpose:** Archive snapshot before transition to JUCE C++ desktop plugin  
 **Status:** Stable, feature-complete, archived
 
 ## 🔖 Accessing This Version
@@ -169,7 +169,7 @@ git diff v1.0.0-python main
 
 ## 📝 Why This Archive Exists
 
-This release was created to preserve the fully functional Python-based implementation before a major repository refactor to experiment with a new language. All features documented here represent the stable, production-ready Python/JavaScript/Node.js version of bleTones.
+This release was created to preserve the fully functional Python-based implementation before the transition to a JUCE C++ desktop plugin (VST3/AU). The Swift iOS rewrite was abandoned due to iOS background BLE scanning restrictions. See [PLATFORM_LIMITATIONS.md](PLATFORM_LIMITATIONS.md) for the full technical analysis. All features documented here represent the stable, production-ready Python/JavaScript/Node.js version of bleTones.
 
 ## 🤝 Contributing
 
@@ -179,7 +179,7 @@ For contributions to this archived version:
 3. Make your changes
 4. Submit PR targeting a new branch (not main)
 
-Note: Active development may have moved to a new implementation. Check the main branch for current development.
+Note: Active development has moved to a JUCE C++ desktop plugin (VST3/AU). Check the main branch for current development.
 
 ## 📧 Support
 

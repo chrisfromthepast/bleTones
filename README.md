@@ -6,6 +6,16 @@ A generative sound experience that creates beautiful, organic music through inte
 
 > **⚠️ Mobile Platform Note:** The Swift iOS rewrite has been abandoned — iOS severely restricts background BLE scanning. The next version will be a **JUCE VST/AU desktop plugin**. See [PLATFORM_LIMITATIONS.md](PLATFORM_LIMITATIONS.md) for the full technical assessment and JUCE feasibility analysis.
 
+## 🗂️ Branch Status
+
+| Branch | Status | Description |
+|---|---|---|
+| `main` | ✅ Active | Stable Python/JS/Electron implementation |
+| `copilot/assess-ios-background-querying` | ✅ Active | Platform limitations analysis + JUCE feasibility |
+| `copilot/create-bletones-project` | ❌ **Dead — delete** | Abandoned Swift iOS rewrite (see [PLATFORM_LIMITATIONS.md](PLATFORM_LIMITATIONS.md)) |
+
+> **Cleanup note:** The `copilot/create-bletones-project` branch contains the abandoned Swift/Xcode iOS rewrite. It should be deleted to avoid confusion. The Swift approach was killed because iOS throttles background BLE scanning to ~1 scan every 3–4 minutes — unusable for real-time audio.
+
 ## 🚀 Quick Start
 
 ### Standalone Python Desktop App (Recommended)

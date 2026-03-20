@@ -2,7 +2,7 @@
 
 **Release Date:** March 19, 2026
 
-This release captures the Python-heavy version of bleTones before a major repository refactor to experiment with a new language implementation.
+This release captures the Python-heavy version of bleTones before the transition to a JUCE C++ desktop plugin (VST3/AU). See [PLATFORM_LIMITATIONS.md](PLATFORM_LIMITATIONS.md) for the JUCE feasibility assessment.
 
 ## 🎯 Overview
 

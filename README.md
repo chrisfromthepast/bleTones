@@ -4,6 +4,8 @@ A generative sound experience that creates beautiful, organic music through inte
 
 > **📦 Python Version Archive:** This repository contains the Python-heavy version (v1.0.0-python). For accessing the archived release, see [PYTHON_ARCHIVE.md](PYTHON_ARCHIVE.md) and [RELEASE_NOTES.md](RELEASE_NOTES.md).
 
+> **⚠️ Mobile Platform Note:** iOS and Android severely restrict background BLE/WiFi scanning. See [PLATFORM_LIMITATIONS.md](PLATFORM_LIMITATIONS.md) for technical details and viable workarounds (ESP32 beacon, desktop app, smart home integration).
+
 ## 🚀 Quick Start
 
 ### Standalone Python Desktop App (Recommended)

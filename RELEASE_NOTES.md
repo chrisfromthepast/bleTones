@@ -212,6 +212,7 @@ bleTones/
 1. **Web Browser BLE** - Chrome's Web Bluetooth API is intentionally restricted for privacy. Desktop apps recommended for full BLE support.
 2. **macOS Permissions** - Requires NSBluetoothAlwaysUsageDescription in Info.plist for BLE access.
 3. **Performance** - Complex scenes with many BLE devices may impact audio timing on lower-end hardware.
+4. **iOS/Android Background Scanning** - Mobile platforms severely restrict background BLE and WiFi scanning (MAC obfuscation, throttled scan rates, no passive WiFi). See [PLATFORM_LIMITATIONS.md](PLATFORM_LIMITATIONS.md) for full analysis and workarounds.
 
 ## 📜 License
 

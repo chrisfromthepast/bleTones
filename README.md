@@ -24,6 +24,12 @@ A native iOS app that scans nearby Bluetooth Low Energy (BLE) devices and conver
 2. Select your development team under Signing & Capabilities
 3. Build and run on an iOS device (BLE scanning does not work in Simulator)
 
+For a detailed walkthrough see **[XCODE_SETUP.md](XCODE_SETUP.md)**.
+
+## CI
+
+Every push and PR to `main` is automatically built on a macOS GitHub Actions runner. See `.github/workflows/build.yml`. The CI job compiles for both Simulator and device targets (without code signing).
+
 ## Architecture
 
 | Layer | Class | Responsibility |

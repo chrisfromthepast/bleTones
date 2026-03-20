@@ -2,7 +2,7 @@
 
 **Release Date:** March 19, 2026
 
-This release captures the Python-heavy version of bleTones before a major repository refactor to experiment with a new language implementation.
+This release captures the Python-heavy version of bleTones before the transition to a JUCE C++ desktop plugin (VST3/AU). See [PLATFORM_LIMITATIONS.md](PLATFORM_LIMITATIONS.md) for the JUCE feasibility assessment.
 
 ## 🎯 Overview
 
@@ -212,6 +212,7 @@ bleTones/
 1. **Web Browser BLE** - Chrome's Web Bluetooth API is intentionally restricted for privacy. Desktop apps recommended for full BLE support.
 2. **macOS Permissions** - Requires NSBluetoothAlwaysUsageDescription in Info.plist for BLE access.
 3. **Performance** - Complex scenes with many BLE devices may impact audio timing on lower-end hardware.
+4. **iOS/Android Background Scanning** - Mobile platforms severely restrict background BLE and WiFi scanning (MAC obfuscation, throttled scan rates, no passive WiFi). See [PLATFORM_LIMITATIONS.md](PLATFORM_LIMITATIONS.md) for full analysis and workarounds.
 
 ## 📜 License
 
@@ -223,7 +224,7 @@ chrisfromthepast
 
 ## 🔮 Future Plans
 
-This Python-heavy version is being archived before a major refactor to experiment with a new language implementation. All functionality documented here represents the stable, feature-complete Python/JavaScript/Node.js version of bleTones.
+The Swift iOS rewrite has been abandoned due to iOS background BLE scanning restrictions (see [PLATFORM_LIMITATIONS.md](PLATFORM_LIMITATIONS.md)). The next iteration of bleTones will be a **JUCE C++ desktop plugin** (VST3/AU) paired with a BLE helper process, targeting musicians and creatives using DAWs. The existing `supercollider/bridge.py` OSC pipeline serves as the prototype for this architecture.
 
 ## 📞 Support
 

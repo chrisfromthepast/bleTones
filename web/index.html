@@ -3,8 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <script type="text/javascript" src="/eel.js"></script>
     <title>bleTones - Generative Sound Experience</title>
+    <script type="text/javascript" src="/eel.js" onerror="console.warn('eel.js not loaded — not running in Python eel context')"></script>
     <style>
         * {
             margin: 0;
@@ -756,6 +756,7 @@
                 this.lastPosition = { x: 0, y: 0 };
                 this.lastTime = 0;
                 this.currentFlavor = 'melodic';
+                // Bonus instruments disabled by default (user opts in)
                 this.disabledInstruments = new Set(['vibraphone', 'marimba', 'glockenspiel']);
                 this.instrumentNames = {
                     choirPad: 'Choir Pad',
@@ -1532,6 +1533,7 @@
                 }, 4700);
             }
 
+            // ====================
             // PERCUSSIVE INSTRUMENTS (available as bonus toggles across all flavors)
             // ====================
             
@@ -1762,6 +1764,7 @@
                     case 'shimmerChorus':
                         this.playShimmerChorus(adjustedFreq, amp, pan);
                         break;
+                    
                     // Percussive instruments (bonus toggles)
                     case 'vibraphone':
                         this.playVibraphone(adjustedFreq, amp, pan);
@@ -1978,6 +1981,10 @@
                 this.isScanning = false;
                 this.isDemoMode = false;
                 this.devices = new Map(); // MAC -> { name, rssi, lastRssi, lastSeen }
+                this.scanAbortController = null;
+                this.isElectron = typeof window.electronBLE !== 'undefined';
+                this.isPython = typeof eel !== 'undefined';
+
                 // Configuration matching bridge.py behavior
                 // Movement threshold is derived from user slider (1-20 → 0.01-0.3)
                 const sliderVal = this.bleTones.config.movementThreshold;
@@ -1989,6 +1996,13 @@
                 
                 this.lastStrike = new Map(); // MAC -> timestamp
                 
+                // Setup Electron BLE listener if available
+                if (this.isElectron) {
+                    window.electronBLE.onAdvertisement((data) => {
+                        this.processDeviceSignal(data.id, data.name, data.rssi);
+                    });
+                }
+                
                 // Update initial UI with info about capabilities
                 this.updateCapabilityInfo();
             }
@@ -1997,12 +2011,37 @@
             updateCapabilityInfo() {
                 const infoEl = document.getElementById('ble-info');
                 if (!infoEl) return;
-                infoEl.innerHTML = '✅ Python BLE scanning available - click "🔍 Real BLE" to start!';
+                
+                if (this.isElectron) {
+                    infoEl.innerHTML = '✅ Native BLE scanning available (Electron app) - click "🔍 Real BLE" to start!';
+                } else if (this.isPython) {
+                    infoEl.innerHTML = '✅ Python BLE scanning available - click "🔍 Real BLE" to start!';
+                } else if (this.isScanningSupported()) {
+                    infoEl.innerHTML = '✅ Passive BLE scanning available - click "🔍 Real BLE" to start!';
+                } else if (this.isSupported()) {
+                    infoEl.innerHTML = `
+                        ⚠️ <strong>Chrome BLE Limitations Detected</strong><br>
+                        <strong>Option 1 (Recommended):</strong> Use <strong>🎭 Demo Mode</strong> for instant simulated BLE experience<br>
+                        <strong>Option 2:</strong> Enable <a href="chrome://flags/#enable-experimental-web-platform-features" target="_blank">chrome://flags/#enable-experimental-web-platform-features</a> and restart Chrome for passive scanning<br>
+                        <strong>Option 3:</strong> Click <strong>Real BLE</strong> to pair with a specific device (limited to one device)<br>
+                        <strong>Option 4:</strong> Download the standalone desktop app (see README) for full BLE support
+                    `;
+                } else {
+                    infoEl.innerHTML = `
+                        ❌ <strong>Web Bluetooth not supported</strong><br>
+                        Please use Chrome browser, or try <strong>🎭 Demo Mode</strong> for a simulated experience.
+                    `;
+                }
             }
 
-            // Check if BLE scanning is supported (Python backend handles this)
+            // Check if Web Bluetooth is available
             isSupported() {
-                return true;
+                return 'bluetooth' in navigator;
+            }
+
+            // Check if BLE scanning is supported (experimental API)
+            isScanningSupported() {
+                return 'bluetooth' in navigator && 'requestLEScan' in navigator.bluetooth;
             }
 
             // Convert user slider value (1-20) to BLE RSSI delta threshold (0.01-0.3)
@@ -2059,26 +2098,213 @@
                 return true;
             }
 
-            // Start BLE scanning (Python backend handles actual scanning)
+            // Start BLE scanning
             async startScan() {
                 const statusEl = document.getElementById('ble-scanning-status');
                 const errorEl = document.getElementById('ble-error');
                 const infoEl = document.getElementById('ble-info');
                 const scanBtn = document.getElementById('ble-scan-btn');
                 const demoBtn = document.getElementById('ble-demo-btn');
-
+                
                 errorEl.textContent = '';
+                
+                // Use Python's native BLE backend if available (eel context)
+                if (this.isPython) {
+                    this.isScanning = true;
+                    this.isDemoMode = false;
+                    statusEl.innerHTML = '<span class="ble-scanning">🔍 Scanning for BLE devices...</span>';
+                    scanBtn.textContent = '⏹ Stop Scan';
+                    demoBtn.disabled = true;
+                    infoEl.innerHTML = '✅ Python BLE scanning active - detecting all nearby devices!';
+                    this.cleanupInterval = setInterval(() => this.cleanupOldDevices(), 1000);
+                    return true;
+                }
+                
+                // Use Electron's native BLE if available
+                if (this.isElectron) {
+                    try {
+                        const result = await window.electronBLE.startScan();
+                        if (result && result.success) {
+                            this.isScanning = true;
+                            this.isDemoMode = false;
+                            statusEl.innerHTML = '<span class="ble-scanning">🔍 Scanning for BLE devices...</span>';
+                            scanBtn.textContent = '⏹ Stop Scan';
+                            demoBtn.disabled = true;
+                            infoEl.innerHTML = '✅ Native BLE scanning active - detecting all nearby devices!';
+                            
+                            // Start cleanup interval
+                            this.cleanupInterval = setInterval(() => this.cleanupOldDevices(), 1000);
+                            
+                            return true;
+                        }
+                    } catch (error) {
+                        console.error('Electron BLE scan error:', error);
+                        errorEl.textContent = `Error: ${error.message}`;
+                        if (error.message && error.message.includes('poweredOn')) {
+                            infoEl.innerHTML = '⚠️ Please turn on Bluetooth and try again, or use <strong>Demo Mode</strong>.';
+                        }
+                        return false;
+                    }
+                }
+                
+                if (!this.isSupported()) {
+                    errorEl.textContent = 'Web Bluetooth is not supported in this browser. Try Chrome.';
+                    infoEl.innerHTML = '💡 <strong>Tip:</strong> Use <strong>Demo Mode</strong> to experience simulated BLE sounds.';
+                    return false;
+                }
+
+                try {
+                    if (this.isScanningSupported()) {
+                        // Use the experimental requestLEScan API for passive scanning
+                        demoBtn.disabled = true;
+                        return await this.startPassiveScan();
+                    } else {
+                        // Fall back to requestDevice (requires user to select a device)
+                        infoEl.innerHTML = `
+                            ⚠️ <strong>Pairing required:</strong> Chrome will open a device picker.<br>
+                            Select a BLE device to monitor its signal. Cancel the dialog to try Demo Mode instead.
+                        `;
+                        demoBtn.disabled = true;
+                        return await this.startDeviceScan();
+                    }
+                } catch (error) {
+                    console.error('BLE scan error:', error);
+                    
+                    // Provide more helpful error messages
+                    if (error.message.includes('cancelled') || error.message.includes('canceled')) {
+                        errorEl.textContent = 'Device selection cancelled.';
+                        infoEl.innerHTML = '💡 <strong>Tip:</strong> Try <strong>Demo Mode</strong> for simulated BLE sounds without pairing.';
+                    } else if (error.message.includes('permission')) {
+                        errorEl.textContent = 'Bluetooth permission denied.';
+                        infoEl.innerHTML = '💡 Enable Bluetooth permissions in browser settings, or try <strong>Demo Mode</strong>.';
+                    } else {
+                        errorEl.textContent = `Error: ${error.message}`;
+                    }
+                    
+                    statusEl.textContent = 'Choose a scanning mode below';
+                    statusEl.classList.remove('ble-scanning');
+                    scanBtn.textContent = '🔍 Real BLE';
+                    scanBtn.disabled = false;
+                    demoBtn.disabled = false;
+                    return false;
+                }
+            }
+
+            // Passive BLE scanning (experimental API)
+            async startPassiveScan() {
+                const statusEl = document.getElementById('ble-scanning-status');
+                const scanBtn = document.getElementById('ble-scan-btn');
+                const infoEl = document.getElementById('ble-info');
+                
+                console.log('Starting passive BLE scan...');
+                this.scanAbortController = new AbortController();
+                
+                console.log('Calling navigator.bluetooth.requestLEScan...');
+                const scan = await navigator.bluetooth.requestLEScan({
+                    acceptAllAdvertisements: true,
+                    keepRepeatedDevices: true
+                }, { signal: this.scanAbortController.signal });
+                
+                console.log('requestLEScan succeeded, scan object:', scan);
+                
                 this.isScanning = true;
                 this.isDemoMode = false;
-                statusEl.innerHTML = '<span class="ble-scanning">🔍 Scanning for BLE devices...</span>';
+                statusEl.innerHTML = '<span class="ble-scanning">✅ Scanning for BLE devices...</span>';
                 scanBtn.textContent = '⏹ Stop Scan';
-                demoBtn.disabled = true;
-                infoEl.innerHTML = '✅ Python BLE scanning active - detecting all nearby devices!';
-
+                infoEl.innerHTML = `
+                    ✅ <strong>Passive scanning active!</strong><br>
+                    Listening for BLE advertisements... Move near BLE devices to generate sounds.<br>
+                    Check the console (F12) for debugging info.
+                `;
+                
+                navigator.bluetooth.addEventListener('advertisementreceived', (event) => {
+                    console.log('Advertisement received:', event.device.name, event.rssi);
+                    this.handleAdvertisement(event);
+                });
+                
+                console.log('Advertisement listener registered');
+                
                 // Start cleanup interval
                 this.cleanupInterval = setInterval(() => this.cleanupOldDevices(), 1000);
-
+                
                 return true;
+            }
+
+            // Device selection scanning (fallback for browsers without requestLEScan)
+            async startDeviceScan() {
+                const statusEl = document.getElementById('ble-scanning-status');
+                const errorEl = document.getElementById('ble-error');
+                const scanBtn = document.getElementById('ble-scan-btn');
+                const infoEl = document.getElementById('ble-info');
+                
+                statusEl.innerHTML = '<span class="ble-scanning">Select a BLE device from the picker...</span>';
+                
+                // Request any BLE device (opens system picker)
+                const device = await navigator.bluetooth.requestDevice({
+                    acceptAllDevices: true,
+                    optionalServices: [] // We just want RSSI, no specific services
+                });
+                
+                if (device) {
+                    this.isScanning = true;
+                    this.isDemoMode = false;
+                    statusEl.innerHTML = `<span class="ble-scanning">Monitoring: ${device.name || 'Unknown Device'}</span>`;
+                    scanBtn.textContent = '⏹ Stop';
+                    infoEl.innerHTML = `📡 Paired with "${device.name || 'Unknown'}". Monitoring signal strength changes.`;
+                    
+                    // Watch for advertisements from this device
+                    if (device.watchAdvertisements) {
+                        await device.watchAdvertisements();
+                        device.addEventListener('advertisementreceived', (event) => {
+                            this.handleAdvertisement(event);
+                        });
+                    } else {
+                        // If watchAdvertisements isn't available, simulate with the device info
+                        infoEl.innerHTML = `📡 Monitoring "${device.name || 'Unknown'}" with simulated signal variations.`;
+                        this.simulateDeviceScanning(device);
+                    }
+                    
+                    // Start cleanup interval
+                    this.cleanupInterval = setInterval(() => this.cleanupOldDevices(), 1000);
+                    
+                    return true;
+                }
+                
+                return false;
+            }
+
+            // Simulate scanning for browsers that don't fully support BLE scanning
+            simulateDeviceScanning(device) {
+                const statusEl = document.getElementById('ble-scanning-status');
+                statusEl.innerHTML = '<span class="ble-scanning">Generating tones from simulated BLE signals...</span>';
+                
+                // Simulated RSSI parameters for demonstration
+                // Base RSSI: -60 dBm represents a typical mid-range BLE signal
+                // Variation: ±20 dBm sinusoidal wave + ±5 dBm random noise simulates walking motion
+                // Update rate: 200ms (5Hz) matches typical BLE advertisement intervals
+                this.simulationInterval = setInterval(() => {
+                    if (!this.isScanning) return;
+                    
+                    const baseRssi = -60;
+                    const variation = Math.sin(Date.now() / 1000) * 20 + (Math.random() - 0.5) * 10;
+                    const rssi = Math.round(baseRssi + variation);
+                    
+                    this.processDeviceSignal(
+                        device.id || 'device-1',
+                        device.name || 'BLE Device',
+                        rssi
+                    );
+                }, 200);
+            }
+
+            // Handle BLE advertisement event
+            handleAdvertisement(event) {
+                const device = event.device;
+                const rssi = event.rssi;
+                const name = device.name || 'Unknown';
+                const id = device.id;
+                
+                this.processDeviceSignal(id, name, rssi);
             }
 
             // Process a device signal and potentially trigger a sound
@@ -2225,6 +2451,20 @@
                 this.isScanning = false;
                 this.isDemoMode = false;
                 
+                // Stop Electron BLE if available
+                if (this.isElectron) {
+                    try {
+                        await window.electronBLE.stopScan();
+                    } catch (error) {
+                        console.error('Error stopping Electron BLE scan:', error);
+                    }
+                }
+                
+                if (this.scanAbortController) {
+                    this.scanAbortController.abort();
+                    this.scanAbortController = null;
+                }
+                
                 if (this.cleanupInterval) {
                     clearInterval(this.cleanupInterval);
                     this.cleanupInterval = null;
@@ -2269,19 +2509,11 @@
         let bleScanner = null;
         let currentInputMode = 'mouse'; // 'mouse' or 'ble'
 
-        // Expose processBleSignal to Python via eel so Python's BLE backend
-        // can call eel.processBleSignal(id, name, rssi)() to push device data here.
-        eel.expose(processBleSignal);
-        function processBleSignal(id, name, rssi) {
-            if (bleScanner) {
-                bleScanner.processDeviceSignal(id, name, rssi);
-            }
-        }
-
         // Start button
         startBtn.addEventListener('click', async () => {
             await bleTones.init();
             bleScanner = new BLEScanner(bleTones, visualizer);
+            window.bleScanner = bleScanner;
             
             startBtn.textContent = 'Playing...';
             startBtn.disabled = true;
@@ -2615,6 +2847,25 @@
             updateInstrumentToggles();
         });
 
+        // Update UI to show Electron mode
+        if (typeof window.electronBLE !== 'undefined') {
+            const subtitle = document.querySelector('.subtitle');
+            if (subtitle) {
+                subtitle.textContent = 'Standalone Desktop App • Full BLE Support';
+            }
+        }
+
+        // processBleSignal is called by Python via eel to push BLE device data to the UI
+        function processBleSignal(id, name, rssi) {
+            if (bleScanner) {
+                bleScanner.processDeviceSignal(id, name, rssi);
+            }
+        }
+
+        // Expose processBleSignal to Python via eel when running in Python eel context
+        if (typeof eel !== 'undefined') {
+            eel.expose(processBleSignal);
+        }
     </script>
 </body>
 </html>

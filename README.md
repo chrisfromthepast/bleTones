@@ -74,7 +74,7 @@ bleTones/
 
 **Best for:** Quick testing without installation
 
-1. Open `index.html` in any modern browser
+1. Open `web/index.html` in any modern browser
 2. Click **"Begin Experience"** to enable audio
 3. Choose your mode:
    - **🖱️ Mouse/Touch**: Create sounds by moving your mouse
@@ -174,6 +174,6 @@ Then open one of the SuperCollider flavor files (in the `supercollider/` folder)
 
 **For most users:** Use the **desktop app** (start.sh/npm start) for the best experience with full BLE support.
 
-**For quick testing:** Open **index.html** in your browser and try Demo Mode.
+**For quick testing:** Open **web/index.html** in your browser and try Demo Mode.
 
 **For advanced users:** Use **Python + SuperCollider** for custom OSC integration and audio synthesis.

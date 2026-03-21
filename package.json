@@ -33,7 +33,7 @@
     "files": [
       "main.js",
       "preload.js",
-      "index.html",
+      "web/index.html",
       "LICENSE"
     ],
     "mac": {

@@ -19,7 +19,7 @@ function createWindow() {
         backgroundColor: '#1a1a2e'
     });
 
-    mainWindow.loadFile('index.html');
+    mainWindow.loadFile('web/index.html');
     
     // Open DevTools in development
     // mainWindow.webContents.openDevTools();

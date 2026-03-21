@@ -1,7 +1,19 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
 <JUCERPROJECT id="tIYj5t" name="bleTones" projectType="audioplug" useAppConfig="0"
-              addUsingNamespaceToJuceHeader="0" jucerFormatVersion="1">
+              addUsingNamespaceToJuceHeader="0" jucerFormatVersion="1"
+              pluginFormats="buildAU,buildVST3,buildStandalone"
+              pluginName="bleTones"
+              pluginDesc="BLE proximity music generator"
+              pluginManufacturer="chrisfromthepast"
+              pluginManufacturerCode="Cftp"
+              pluginCode="BleT"
+              pluginIsSynth="1"
+              pluginWantsMidiInput="0"
+              pluginProducesMidiOutput="1"
+              pluginIsMidiEffect="0"
+              pluginEditorRequiresKeys="0"
+              bundleIdentifier="com.chrisfromthepast.bleTones">
   <MAINGROUP id="mu74Cl" name="bleTones">
     <GROUP id="{D68C9D7D-1C7C-644C-39D9-779298FB4F49}" name="Source">
       <FILE id="Iy4ViQ" name="PluginProcessor.cpp" compile="1" resource="0"
@@ -31,7 +43,10 @@
   </MODULES>
   <JUCEOPTIONS JUCE_STRICT_REFCOUNTEDPOINTER="1" JUCE_VST3_CAN_REPLACE_VST2="0"/>
   <EXPORTFORMATS>
-    <XCODE_MAC targetFolder="Builds/MacOSX">
+    <XCODE_MAC targetFolder="Builds/MacOSX"
+             hardenedRuntime="1"
+             hardenedRuntimeOptions="com.apple.security.device.bluetooth"
+             extraPlistEntries="&lt;key&gt;NSBluetoothAlwaysUsageDescription&lt;/key&gt;&#10;&lt;string&gt;bleTones needs Bluetooth access to scan nearby devices and generate music from their signal strength.&lt;/string&gt;&#10;&lt;key&gt;NSBluetoothPeripheralUsageDescription&lt;/key&gt;&#10;&lt;string&gt;bleTones needs Bluetooth access to scan nearby devices and generate music from their signal strength.&lt;/string&gt;">
       <CONFIGURATIONS>
         <CONFIGURATION isDebug="1" name="Debug" targetName="bleTones"/>
         <CONFIGURATION isDebug="0" name="Release" targetName="bleTones"/>

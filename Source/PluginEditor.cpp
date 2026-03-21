@@ -7,6 +7,8 @@ BLETonesAudioProcessorEditor::BLETonesAudioProcessorEditor (BLETonesAudioProcess
       volumeAttachment      (p.apvts, "volume",      volumeSlider),
       sensitivityAttachment (p.apvts, "sensitivity", sensitivitySlider)
 {
+    DBG ("[bleTones] Editor ctor");
+
     setSize (400, 320);
 
     // Volume slider
@@ -38,12 +40,15 @@ BLETonesAudioProcessorEditor::BLETonesAudioProcessorEditor (BLETonesAudioProcess
 
 BLETonesAudioProcessorEditor::~BLETonesAudioProcessorEditor()
 {
+    DBG ("[bleTones] Editor dtor");
     stopTimer();
 }
 
 //==============================================================================
 void BLETonesAudioProcessorEditor::paint (juce::Graphics& g)
 {
+    DBG ("[bleTones] paint");
+
     g.fillAll (juce::Colour (0xff1a1a2e));
 
     g.setColour (juce::Colour (0xff00d4ff));
@@ -55,6 +60,8 @@ void BLETonesAudioProcessorEditor::paint (juce::Graphics& g)
 
 void BLETonesAudioProcessorEditor::resized()
 {
+    DBG ("[bleTones] resized: " + juce::String (getWidth()) + "x" + juce::String (getHeight()));
+
     auto area = getLocalBounds().reduced (12);
     area.removeFromTop (40); // title
 

@@ -37,6 +37,39 @@ BLETonesAudioProcessor::BLETonesAudioProcessor()
         DBG ("bleTones: failed to bind OSC receiver on port " << kOSCPort);
 
     oscReceiver.addListener (this);
+
+#if JucePlugin_Build_Standalone && JUCE_MAC
+    // Auto-launch the embedded BLE helper when running as a Standalone app.
+    // The helper is packaged at:  bleTones.app/Contents/Resources/bleTones_helper.app
+    // Launch with -g so it does not steal focus / appear in the foreground.
+    {
+        const juce::File helperApp =
+            juce::File::getSpecialLocation (juce::File::currentExecutableFile)
+                .getParentDirectory()           // .../bleTones.app/Contents/MacOS
+                .getParentDirectory()           // .../bleTones.app/Contents
+                .getChildFile ("Resources")
+                .getChildFile ("bleTones_helper.app");
+
+        if (helperApp.exists())
+        {
+            juce::StringArray args;
+            args.add ("/usr/bin/open");
+            args.add ("-g");
+            args.add (helperApp.getFullPathName());
+
+            // 'open' delegates to LaunchServices and exits immediately;
+            // the helper runs as its own independent process, so letting
+            // launcher go out of scope here is intentional and safe.
+            juce::ChildProcess launcher;
+            if (! launcher.start (args))
+                DBG ("bleTones: failed to launch helper at " << helperApp.getFullPathName());
+        }
+        else
+        {
+            DBG ("bleTones: helper not found at " << helperApp.getFullPathName());
+        }
+    }
+#endif
 }
 
 BLETonesAudioProcessor::~BLETonesAudioProcessor()

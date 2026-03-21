@@ -96,9 +96,22 @@ copy build\bleTones_artefacts\Release\VST3\bleTones.vst3
 
 ## Running
 
-### Step 1 — Launch the BLE Helper
+### macOS Standalone (single click)
 
-The helper must be running before you open the plugin.
+When you launch the **Standalone** app (`bleTones.app`) on macOS, it
+automatically starts the embedded BLE helper in the background — no manual
+step required. The helper is bundled inside the app at:
+
+```
+bleTones.app/Contents/Resources/bleTones_helper.app
+```
+
+The helper runs silently (no Dock icon). macOS will prompt for Bluetooth
+permission on the **first launch** — click **Allow**.
+
+### DAW / plugin usage (VST3 / AU)
+
+The helper must be started manually before opening the plugin in your DAW.
 
 **macOS:**
 ```bash
@@ -112,7 +125,7 @@ The helper runs silently (no Dock icon).
 build\helper\Release\bleTones_helper.exe
 ```
 
-### Step 2 — Open the plugin
+### Loading in your DAW (VST3 / AU)
 
 - Load `bleTones` as a VST3 / AU instrument in your DAW, **or**
 - Launch the standalone app directly.

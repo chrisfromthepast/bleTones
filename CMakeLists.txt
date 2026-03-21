@@ -59,3 +59,21 @@ target_link_libraries(bleTones
 # BLE Helper companion process
 # ---------------------------------------------------------------------------
 add_subdirectory(helper)
+
+# ---------------------------------------------------------------------------
+# macOS Standalone: embed bleTones_helper.app inside the .app bundle and
+# ensure the helper is built before we try to copy it.
+# ---------------------------------------------------------------------------
+if(APPLE)
+    add_dependencies(bleTones_Standalone bleTones_helper)
+
+    add_custom_command(
+        TARGET bleTones_Standalone POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E make_directory
+            "$<TARGET_BUNDLE_DIR:bleTones_Standalone>/Contents/Resources"
+        COMMAND ${CMAKE_COMMAND} -E copy_directory
+            "$<TARGET_BUNDLE_DIR:bleTones_helper>"
+            "$<TARGET_BUNDLE_DIR:bleTones_Standalone>/Contents/Resources/bleTones_helper.app"
+        COMMENT "Embedding bleTones_helper.app into Standalone bundle Resources"
+    )
+endif()

@@ -1,39 +1,59 @@
-# CMake build directories
+# ============================================================
+# CMake
+# ============================================================
 build/
 cmake-build-*/
 CMakeFiles/
 CMakeCache.txt
 cmake_install.cmake
 Makefile
+_deps/
 
-# JUCE generated files
+# ============================================================
+# Projucer / JUCE generated
+# ============================================================
 JuceLibraryCode/
 Builds/
+*.jucer.bak
 
-# Compiled plugin bundles
+# ============================================================
+# Compiled plugin and app bundles
+# ============================================================
 *.vst3/
 *.component/
 *.aaxplugin/
+*.app/
 
-# macOS
-.DS_Store
-*.dSYM/
-
-# Windows
+# ============================================================
+# C++ build artifacts
+# ============================================================
+*.o
 *.obj
+*.a
+*.lib
+*.so
+*.dylib
 *.ilk
 *.pdb
 *.exp
-*.lib
 *.exe
 
-# IDE project files
-.idea/
-.vscode/
+# ============================================================
+# macOS
+# ============================================================
+.DS_Store
+**/.DS_Store
+__MACOSX/
+*.dSYM/
+
+# ============================================================
+# Xcode
+# ============================================================
+xcuserdata/
+*.xcuserdata/
 *.xcodeproj/xcuserdata/
 *.xcworkspace/xcuserdata/
 DerivedData/
-xcuserdata/
 *.pbxuser
 *.mode1v3
 *.mode2v3
@@ -42,7 +62,25 @@ xcuserdata/
 *.moved-aside
 *.hmap
 
+# ============================================================
+# Visual Studio / Windows
+# ============================================================
+.vs/
+*.aps
+*.vcxproj.user
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# ============================================================
+# IDE
+# ============================================================
+.idea/
+.vscode/
+
+# ============================================================
 # Editor swap/backup
+# ============================================================
 *.swp
 *.swo
 *~

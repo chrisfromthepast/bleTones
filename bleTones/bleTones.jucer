@@ -5,12 +5,12 @@
   <MAINGROUP id="mu74Cl" name="bleTones">
     <GROUP id="{D68C9D7D-1C7C-644C-39D9-779298FB4F49}" name="Source">
       <FILE id="Iy4ViQ" name="PluginProcessor.cpp" compile="1" resource="0"
-            file="Source/PluginProcessor.cpp"/>
+            file="../Source/PluginProcessor.cpp"/>
       <FILE id="Q9F6FN" name="PluginProcessor.h" compile="0" resource="0"
-            file="Source/PluginProcessor.h"/>
+            file="../Source/PluginProcessor.h"/>
       <FILE id="j87AGU" name="PluginEditor.cpp" compile="1" resource="0"
-            file="Source/PluginEditor.cpp"/>
-      <FILE id="YEISvr" name="PluginEditor.h" compile="0" resource="0" file="Source/PluginEditor.h"/>
+            file="../Source/PluginEditor.cpp"/>
+      <FILE id="YEISvr" name="PluginEditor.h" compile="0" resource="0" file="../Source/PluginEditor.h"/>
     </GROUP>
   </MAINGROUP>
   <MODULES>

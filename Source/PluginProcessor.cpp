@@ -79,7 +79,7 @@ BLETonesAudioProcessor::~BLETonesAudioProcessor()
 }
 
 //==============================================================================
-const juce::String BLETonesAudioProcessor::getName() const { return JucePlugin_Name; }
+const juce::String BLETonesAudioProcessor::getName() const { return "bleTones"; }
 
 //==============================================================================
 void BLETonesAudioProcessor::prepareToPlay (double sr, int /*samplesPerBlock*/)
@@ -94,7 +94,7 @@ void BLETonesAudioProcessor::releaseResources() {}
 //==============================================================================
 bool BLETonesAudioProcessor::isBusesLayoutSupported (const BusesLayout& layouts) const
 {
-    auto& out = layouts.getMainOutputChannelSet();
+    const auto& out = layouts.getMainOutputChannelSet();
     return out == juce::AudioChannelSet::mono()
         || out == juce::AudioChannelSet::stereo();
 }

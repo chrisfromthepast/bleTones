@@ -55,6 +55,8 @@ target_link_libraries(bleTones
         juce::juce_recommended_warning_flags
 )
 
+juce_generate_juce_header(bleTones)
+
 # ---------------------------------------------------------------------------
 # BLE Helper companion process
 # ---------------------------------------------------------------------------

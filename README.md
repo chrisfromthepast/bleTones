@@ -59,13 +59,11 @@ host DAW's Info.plist is irrelevant.
 
 ## Building
 
-There are two supported workflows: **CMake** (recommended, works in the terminal
-and generates projects for any IDE) and **Projucer** (Xcode-only, requires a
-manual JUCE installation). Most users should use CMake.
+The build system is **CMake** — it works in the terminal and can generate projects for any IDE (Xcode, Visual Studio, CLion, etc.).
 
 ---
 
-### Option A — CMake (recommended)
+### CMake
 
 #### 1 — Clone the repository
 
@@ -144,28 +142,6 @@ killall -9 AudioComponentRegistrar 2>/dev/null; auval -a 2>/dev/null | grep -i b
 xcopy /E /I "build\bleTones_artefacts\Release\VST3\bleTones.vst3" ^
       "C:\Program Files\Common Files\VST3\bleTones.vst3"
 ```
-
----
-
-### Option B — Projucer / Xcode (macOS only)
-
-The file `bleTones/bleTones.jucer` is a [Projucer](https://juce.com/discover/projucer)
-project. Use this only if you already have JUCE installed and prefer working
-entirely inside Xcode without CMake.
-
-**Requirements:**
-- JUCE 8.0.0+ downloaded and placed at `../JUCE` relative to the repository root
-  (i.e. the `JUCE` folder must be a sibling of the `bleTones` repository folder).
-- Projucer (ships with JUCE) — open it from `JUCE/extras/Projucer/Builds/MacOSX/build/Release/Projucer.app`.
-
-**Steps:**
-1. Open `bleTones/bleTones.jucer` in Projucer.
-2. Click **Save and Open in IDE** (⌘S) — this generates the Xcode project under
-   `bleTones/Builds/MacOSX/`.
-3. Build and run from Xcode.
-
-> **Note:** The Projucer workflow does **not** build the BLE helper. Use the
-> CMake workflow if you need the helper process.
 
 ---
 

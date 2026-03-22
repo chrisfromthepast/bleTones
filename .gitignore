@@ -51,8 +51,8 @@ __MACOSX/
 # ============================================================
 xcuserdata/
 *.xcuserdata/
-*.xcodeproj/xcuserdata/
-*.xcworkspace/xcuserdata/
+*.xcodeproj/
+*.xcworkspace/
 DerivedData/
 *.pbxuser
 *.mode1v3

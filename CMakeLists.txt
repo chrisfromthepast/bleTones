@@ -28,9 +28,6 @@ juce_add_plugin(bleTones
     NEEDS_MIDI_OUTPUT           TRUE
     EDITOR_WANTS_KEYBOARD_FOCUS FALSE
     COPY_PLUGIN_AFTER_BUILD     FALSE
-    # macOS standalone needs Bluetooth permission
-    HARDENED_RUNTIME_ENABLED    TRUE
-    HARDENED_RUNTIME_OPTIONS    "com.apple.security.device.bluetooth"
 )
 
 target_sources(bleTones PRIVATE

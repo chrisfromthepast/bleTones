@@ -63,7 +63,7 @@ public:
     }
 
     /** Send  /ble/rssi  <deviceName>  <rssi>  as a UDP OSC packet. */
-    void sendBLERSSI (const std::string& deviceName, int32_t rssi)
+    void sendBLERSSI (const std::string& deviceName, int32_t rssi) const
     {
         std::vector<uint8_t> pkt;
         pkt.reserve (64);

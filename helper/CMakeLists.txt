@@ -46,6 +46,9 @@ elseif(WIN32)
 
 else()
     message(STATUS "bleTones helper: Linux/BlueZ support not yet implemented")
+    # Create a dummy target so the parent CMakeLists.txt doesn't fail
+    add_custom_target(bleTones_helper)
+    return()
 endif()
 
 target_include_directories(bleTones_helper PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/Source")

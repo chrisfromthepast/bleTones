@@ -145,6 +145,17 @@ std::vector<BLEDevice> BLETonesAudioProcessor::getDevicesCopy() const
     return devices;
 }
 
+int BLETonesAudioProcessor::getActiveVoiceCount() const
+{
+    int count = 0;
+    for (const auto& v : voices)
+    {
+        if (v.active)
+            ++count;
+    }
+    return count;
+}
+
 //==============================================================================
 double BLETonesAudioProcessor::rssiToFrequency (int rssi)
 {

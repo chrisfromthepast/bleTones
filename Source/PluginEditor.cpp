@@ -87,25 +87,4 @@ void BLETonesAudioProcessorEditor::timerCallback()
 {
     cachedDevices = audioProcessor.getDevicesCopy();
 
-    if (cachedDevices.empty())
-    {
-        statusLabel.setText ("Waiting for BLE helper on UDP 9000…",
-                             juce::dontSendNotification);
-        deviceListLabel.setText ("No BLE devices detected.\nMake sure bleTones Helper is running.",
-                                 juce::dontSendNotification);
-    }
-    else
-    {
-        statusLabel.setText (
-            juce::String (static_cast<int> (cachedDevices.size())) + " device(s) active",
-            juce::dontSendNotification);
-
-        juce::String txt;
-        for (const auto& d : cachedDevices)
-            txt += d.name + "  " + juce::String (d.rssi) + " dBm\n";
-
-        deviceListLabel.setText (txt.trimEnd(), juce::dontSendNotification);
-    }
-
-    repaint();
 }

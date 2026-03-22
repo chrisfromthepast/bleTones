@@ -178,6 +178,7 @@ entirely inside Xcode without CMake.
 | CMake configure hangs for several minutes | Normal — JUCE is being downloaded (~400 MB). Wait it out. |
 | `Error: No CMAKE_CXX_COMPILER` (macOS) | Run `sudo xcode-select --switch /Applications/Xcode.app/Contents/Developer` |
 | AU plugin not found in DAW after install | Run `killall -9 AudioComponentRegistrar` and rescan in your DAW |
+| macOS says "bleTones.app is damaged or incomplete" | The app was built without a code signing identity. Right-click the `.app` and choose **Open** once to bypass Gatekeeper, or run `xattr -cr bleTones.app` in Terminal to strip the quarantine flag. |
 | Bluetooth permission denied on first launch | macOS will show a system dialog — click **Allow**. If missed, go to **System Settings → Privacy & Security → Bluetooth** and enable bleTones Helper. |
 
 ---

@@ -44,8 +44,6 @@
   <JUCEOPTIONS JUCE_STRICT_REFCOUNTEDPOINTER="1" JUCE_VST3_CAN_REPLACE_VST2="0"/>
   <EXPORTFORMATS>
     <XCODE_MAC targetFolder="Builds/MacOSX"
-             hardenedRuntime="1"
-             hardenedRuntimeOptions="com.apple.security.device.bluetooth"
              extraPlistEntries="&lt;key&gt;NSBluetoothAlwaysUsageDescription&lt;/key&gt;&#10;&lt;string&gt;bleTones needs Bluetooth access to scan nearby devices and generate music from their signal strength.&lt;/string&gt;&#10;&lt;key&gt;NSBluetoothPeripheralUsageDescription&lt;/key&gt;&#10;&lt;string&gt;bleTones needs Bluetooth access to scan nearby devices and generate music from their signal strength.&lt;/string&gt;">
       <CONFIGURATIONS>
         <CONFIGURATION isDebug="1" name="Debug" targetName="bleTones"/>

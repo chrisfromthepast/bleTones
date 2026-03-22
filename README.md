@@ -1,262 +1,179 @@
 # bleTones
 
-A generative audio plugin that turns nearby Bluetooth device signal strengths
-into music. Each BLE device becomes a voice: the closer it is, the louder and
-higher its tone. Works as a **VST3 / AU plugin inside any DAW** or as a
-**standalone desktop app**.
+A generative sound experience that creates beautiful, organic music through interaction with Bluetooth devices or mouse/touch input.
 
----
+> **📦 Python Version Archive:** This repository contains the Python-heavy version (v1.0.0-python). For accessing the archived release, see [PYTHON_ARCHIVE.md](PYTHON_ARCHIVE.md) and [RELEASE_NOTES.md](RELEASE_NOTES.md).
 
-## Architecture
+> **⚠️ Mobile Platform Note:** The Swift iOS rewrite has been abandoned — iOS severely restricts background BLE scanning. The next version will be a **JUCE VST/AU desktop plugin**. See [PLATFORM_LIMITATIONS.md](PLATFORM_LIMITATIONS.md) for the full technical assessment and JUCE feasibility analysis.
 
-bleTones uses a two-process design to work around macOS CoreBluetooth
-permission restrictions on DAW hosts:
+## 🗂️ Branch Status
 
-```
-┌───────────────────────┐     OSC / UDP      ┌──────────────────────────┐
-│   bleTones Helper     │ ───────────────▶   │  bleTones VST3/AU Plugin │
-│  (standalone app)     │   localhost:9000    │  (inside DAW or standalone)│
-│                       │                    │                          │
-│  • Scans BLE devices  │                    │  • Receives OSC          │
-│  • Own Info.plist     │                    │  • Maps RSSI → frequency │
-│  • Full BLE access    │                    │  • Renders audio         │
-└───────────────────────┘                    └──────────────────────────┘
-```
+| Branch | Status | Description |
+|---|---|---|
+| `main` | ✅ Active | Stable Python/JS/Electron implementation |
+| `copilot/assess-ios-background-querying` | ✅ Active | Platform limitations analysis + JUCE feasibility |
+| `copilot/create-bletones-project` | ❌ **Dead — delete** | Abandoned Swift iOS rewrite (see [PLATFORM_LIMITATIONS.md](PLATFORM_LIMITATIONS.md)) |
 
-The **helper** runs as a background app with its own `Info.plist` (macOS
-Bluetooth permission). The **plugin** never touches Bluetooth directly, so the
-host DAW's Info.plist is irrelevant.
+> **Cleanup note:** The `copilot/create-bletones-project` branch contains the abandoned Swift/Xcode iOS rewrite. It should be deleted to avoid confusion. The Swift approach was killed because iOS throttles background BLE scanning to ~1 scan every 3–4 minutes — unusable for real-time audio.
 
----
+## 🚀 Quick Start
 
-## Prerequisites
+### Standalone Python Desktop App (Recommended)
 
-### macOS
+**Best for:** Full Bluetooth scanning, best performance, and single-file distribution
 
-| Tool | Version | Notes |
-|------|---------|-------|
-| Xcode | 14+ | Install from the [Mac App Store](https://apps.apple.com/app/xcode/id497799835). Includes the compiler, SDK, and AU support. |
-| Xcode Command Line Tools | (included with Xcode) | Or install standalone: `xcode-select --install` |
-| CMake | 3.22+ | `brew install cmake` or [cmake.org](https://cmake.org/download/) |
-| Git | any | Included with Xcode CLT, or `brew install git` |
+**Requirements:**
+- Python 3.8+
+- Install dependencies: `pip install eel bleak`
 
-> **Note:** Full Xcode (not just Command Line Tools) is required to build AU
-> plugins and to use the Xcode IDE workflow described in Option A.
-
-### Windows
-
-| Tool | Version | Notes |
-|------|---------|-------|
-| Visual Studio | 2022 (or 2019) | Include the **Desktop development with C++** workload |
-| CMake | 3.22+ | Bundled with Visual Studio, or [cmake.org](https://cmake.org/download/) |
-| Git | any | [git-scm.com](https://git-scm.com/download/win) |
-| Windows SDK | 10.0.19041+ | Included with the Visual Studio C++ workload |
-
-> **JUCE is fetched automatically** by CMake's `FetchContent` — no manual
-> download or submodule initialisation required.
-
----
-
-## Building
-
-The build system is **CMake** — it works in the terminal and can generate projects for any IDE (Xcode, Visual Studio, CLion, etc.).
-
----
-
-### CMake
-
-#### 1 — Clone the repository
-
+**Run from source:**
 ```bash
-git clone https://github.com/chrisfromthepast/bleTones.git
-cd bleTones
+python main.py
 ```
 
-#### 2 — Configure
+**Build a single executable (no console window):**
 
-The first run downloads JUCE (~400 MB) and may take **2–5 minutes** depending
-on your internet connection. Subsequent runs are instant.
-
-**macOS / Linux (Makefile or Ninja build — terminal only):**
+macOS / Linux:
 ```bash
-cmake -B build -DCMAKE_BUILD_TYPE=Release
+pyinstaller --onefile --noconsole --name bleTones --add-data "web:web" --osx-bundle-identifier com.chrisfromthepast.bletones main.py
 ```
-
-**macOS — generate an Xcode project (open in Xcode IDE):**
+On macOS, copy the included `Info.plist` into the built `.app` bundle to enable Bluetooth permissions:
 ```bash
-cmake -B build -G Xcode
+cp Info.plist dist/bleTones.app/Contents/Info.plist
 ```
-Then open `build/bleTones.xcodeproj` in Xcode, select the **bleTones -
-Standalone** or **bleTones - AU** scheme, and press **⌘B** to build.
-
-**Windows — generate a Visual Studio solution:**
-```bat
-cmake -B build -G "Visual Studio 17 2022"
-```
-Then open `build\bleTones.sln` in Visual Studio and build the `Release`
-configuration.
-
-#### 3 — Build from the terminal
-
+Windows:
 ```bash
-cmake --build build --config Release
+pyinstaller --onefile --noconsole --name bleTones --add-data "web;web" main.py
 ```
+The compiled binary will appear in the `dist/` folder.
 
-> **Tip (macOS):** Pass `-j$(sysctl -n hw.logicalcpu)` to use all CPU cores:
-> ```bash
-> cmake --build build --config Release -j$(sysctl -n hw.logicalcpu)
-> ```
-
-Built artefacts:
-
-| Artefact | Location |
-|----------|----------|
-| VST3 plugin | `build/bleTones_artefacts/Release/VST3/bleTones.vst3` |
-| AU plugin (macOS) | `build/bleTones_artefacts/Release/AU/bleTones.component` |
-| Standalone app (macOS) | `build/bleTones_artefacts/Release/Standalone/bleTones.app` |
-| Standalone app (Windows) | `build/bleTones_artefacts/Release/Standalone/bleTones.exe` |
-| BLE Helper (macOS) | `build/helper/bleTones_helper.app` |
-| BLE Helper (Windows) | `build/helper/Release/bleTones_helper.exe` |
-
-#### 4 — Install the plugin
-
-**macOS VST3:**
-```bash
-cp -r "build/bleTones_artefacts/Release/VST3/bleTones.vst3" \
-      ~/Library/Audio/Plug-Ins/VST3/
-```
-
-**macOS AU:**
-```bash
-cp -r "build/bleTones_artefacts/Release/AU/bleTones.component" \
-      ~/Library/Audio/Plug-Ins/Components/
-```
-
-After copying an AU, reset the Audio Unit cache so your DAW picks it up:
-```bash
-killall -9 AudioComponentRegistrar 2>/dev/null; auval -a 2>/dev/null | grep -i bletones
-```
-
-**Windows VST3:**
-```bat
-xcopy /E /I "build\bleTones_artefacts\Release\VST3\bleTones.vst3" ^
-      "C:\Program Files\Common Files\VST3\bleTones.vst3"
-```
-
----
-
-### Troubleshooting
-
-| Symptom | Fix |
-|---------|-----|
-| `cmake: command not found` | Install CMake: `brew install cmake` (macOS) or download from cmake.org |
-| `xcode-select: error: tool 'xcodebuild' requires Xcode` | Install full Xcode from the Mac App Store (not just CLT) |
-| CMake configure hangs for several minutes | Normal — JUCE is being downloaded (~400 MB). Wait it out. |
-| `Error: No CMAKE_CXX_COMPILER` (macOS) | Run `sudo xcode-select --switch /Applications/Xcode.app/Contents/Developer` |
-| AU plugin not found in DAW after install | Run `killall -9 AudioComponentRegistrar` and rescan in your DAW |
-| macOS says "bleTones.app is damaged or incomplete" | The app was built without a code signing identity. Right-click the `.app` and choose **Open** once to bypass Gatekeeper, or run `xattr -cr bleTones.app` in Terminal to strip the quarantine flag. |
-| Bluetooth permission denied on first launch | macOS will show a system dialog — click **Allow**. If missed, go to **System Settings → Privacy & Security → Bluetooth** and enable bleTones Helper. |
-
----
-
-## Running
-
-### macOS Standalone (single click)
-
-When you launch the **Standalone** app (`bleTones.app`) on macOS, it
-automatically starts the embedded BLE helper in the background — no manual
-step required. The helper is bundled inside the app at:
-
-```
-bleTones.app/Contents/Resources/bleTones_helper.app
-```
-
-The helper runs silently (no Dock icon). macOS will prompt for Bluetooth
-permission on the **first launch** — click **Allow**.
-
-### DAW / plugin usage (VST3 / AU)
-
-The helper must be started manually before opening the plugin in your DAW.
-
-**macOS:**
-```bash
-open build/helper/bleTones_helper.app
-```
-macOS will ask for Bluetooth permission on first launch — click **Allow**.
-The helper runs silently (no Dock icon).
-
-**Windows:**
-```
-build\helper\Release\bleTones_helper.exe
-```
-
-### Loading in your DAW (VST3 / AU)
-
-- Load `bleTones` as a VST3 / AU instrument in your DAW, **or**
-- Launch the standalone app directly.
-
-The plugin listens on **UDP port 9000** (localhost). Once the helper is
-running and nearby BLE devices are visible, they appear in the plugin UI
-within a second or two.
-
----
-
-## Plugin Parameters
-
-| Parameter | Range | Default | Description |
-|-----------|-------|---------|-------------|
-| Volume | 0 – 1 | 0.7 | Master output level |
-| BLE Sensitivity | 0 – 1 | 0.5 | Scales RSSI → amplitude mapping |
-| Root Note | 0 – 127 | 60 (C4) | MIDI root note (reserved for scale mapping) |
-
-### RSSI mapping
-
-| BLE RSSI | Frequency | Amplitude |
-|----------|-----------|-----------|
-| −30 dBm (very close) | 880 Hz (A5) | 1.0 |
-| −65 dBm (medium) | ~440 Hz (A4) | ~0.5 |
-| −100 dBm (far / barely visible) | 110 Hz (A2) | 0.1 |
-
-Up to **8 simultaneous voices** are rendered (one per device). Devices not
-seen for more than 10 seconds are automatically removed.
-
----
-
-## OSC Protocol
-
-The plugin accepts messages on **UDP port 9000** matching this pattern:
-
-```
-/ble/rssi  <deviceName:string>  <rssi:int32>
-```
-
-Any OSC-capable program can feed data to the plugin — you are not limited to
-the bundled helper.
-
----
-
-## Project Structure
-
+**Required directory structure:**
 ```
 bleTones/
-├── CMakeLists.txt          # Top-level CMake: plugin + helper
-├── Source/
-│   ├── PluginProcessor.h   # AudioProcessor + OSC receiver
-│   ├── PluginProcessor.cpp
-│   ├── PluginEditor.h      # Plugin UI
-│   └── PluginEditor.cpp
-└── helper/
-    ├── CMakeLists.txt      # Helper build (macOS / Windows)
-    ├── Info.plist          # macOS Bluetooth permission
-    └── Source/
-        ├── OSCSender.h     # Self-contained UDP OSC sender
-        ├── main.mm         # macOS CoreBluetooth scanner (Obj-C++)
-        └── main_win.cpp    # Windows WinRT BLE scanner
+├── main.py
+└── web/
+    └── index.html
 ```
+
+**Features:**
+- ✅ Full native BLE scanning via Python `bleak` (no browser restrictions)
+- ✅ Automatically detects all nearby Bluetooth devices
+- ✅ Compiles to a single standalone executable
+- ✅ Web Audio synthesis rendered in an embedded browser window via `eel`
+
+### Electron Desktop App (Legacy)
+
+**Best for:** Users already set up with Node.js
+
+**One-click start:**
+- **Mac/Linux**: Double-click `start.sh` or run `./start.sh`  
+- **Windows**: Double-click `start.bat`
+- **Manual**: Run `npm install` then `npm start`
+
+### Web Browser
+
+**Best for:** Quick testing without installation
+
+1. Open `web/index.html` in any modern browser
+2. Click **"Begin Experience"** to enable audio
+3. Choose your mode:
+   - **🖱️ Mouse/Touch**: Create sounds by moving your mouse
+   - **📡 BLE Devices**: Use Demo Mode or real Bluetooth devices
+
+**Note:** Real BLE scanning in browsers is limited due to privacy restrictions. Use the desktop app for full BLE support.
 
 ---
 
-## License
+## 🎵 How to Use
 
-[MIT](LICENSE)
+### Mouse/Touch Mode
 
+- Move your mouse or touch the screen to create sounds
+- Faster movement = louder sounds
+- Vertical position affects pitch (top = high notes, bottom = low notes)
+- Choose from 4 instruments: Wood Chimes, Deep Log, Hollow Reed, or Kalimba
+
+### BLE Mode
+
+#### 🎭 Demo Mode
+Generates simulated BLE signals for a full experience without real Bluetooth hardware:
+1. Switch to "📡 BLE Devices" mode
+2. Click **"🎭 Demo Mode"**
+3. Enjoy generative music from simulated devices!
+
+#### 🔍 Real BLE Mode
+- **Desktop App**: Click "🔍 Real BLE" to scan all nearby Bluetooth devices automatically
+- **Web Browser**: Limited support (see Troubleshooting below)
+
+### Settings & Features
+
+- 🎹 **4 Unique Instruments** - Wood Chimes, Deep Log, Hollow Reed, Kalimba
+- 🎨 **3 Sound Flavors** - Melodic, Ambient, Ethereal (⚙️ Settings menu)
+- ⚙️ **Parameter Control** - Adjust volume, pitch scale, and sensitivity
+- 💾 **Persistent Settings** - Preferences saved between sessions
+- 🎨 **Real-time Visualization** - Particle effects respond to your movements
+
+---
+
+## 🔧 Troubleshooting
+
+### "Not seeing Bluetooth devices"
+
+**Best Solution:** Use the desktop app!
+- Run `npm install` then `npm start`
+- Or double-click `start.sh` (Mac/Linux) or `start.bat` (Windows)
+
+**For web browsers:**
+- Try **Demo Mode** first to verify audio is working
+- Enable Bluetooth in your system settings
+- Chrome only: Try enabling `chrome://flags/#enable-experimental-web-platform-features`
+- Note: Chrome's Web Bluetooth API is intentionally restricted for privacy
+
+### "App won't start"
+
+- Ensure Node.js is installed from https://nodejs.org/
+- Run `npm install` in the project directory
+- Check terminal for error messages
+
+---
+
+## 🔬 Advanced: Python + SuperCollider
+
+For the original setup with more control and OSC integration:
+
+### Requirements
+- Python 3 with `bleak` and `python-osc` packages
+- SuperCollider audio synthesis software
+
+### Setup
+
+```bash
+# Install Python dependencies
+pip install bleak python-osc
+
+# Run the BLE bridge (scans Bluetooth and sends OSC messages)
+python supercollider/bridge.py
+```
+
+Then open one of the SuperCollider flavor files (in the `supercollider/` folder) in SuperCollider and evaluate it:
+
+- `supercollider/woods.scd` - Melodic flavor
+- `supercollider/flavor-ambient.scd` - Ambient with long sustain
+- `supercollider/flavor-percussive.scd` - Sharp, rhythmic sounds
+- `supercollider/flavor-ethereal.scd` - High, dreamy tones
+- `supercollider/sines.scd`, `supercollider/songly.scd`, `supercollider/sprites.scd` - Additional experimental presets
+
+**How it works:**
+1. `supercollider/bridge.py` scans for BLE devices and normalizes RSSI values
+2. Sends OSC messages to SuperCollider on port 57120
+3. SuperCollider `.scd` files in the `supercollider/` folder generate sounds based on BLE signal data
+
+---
+
+## 📝 Summary
+
+**For most users:** Use the **desktop app** (start.sh/npm start) for the best experience with full BLE support.
+
+**For quick testing:** Open **web/index.html** in your browser and try Demo Mode.
+
+**For advanced users:** Use **Python + SuperCollider** for custom OSC integration and audio synthesis.

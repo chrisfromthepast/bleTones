@@ -1,86 +1,34 @@
-# ============================================================
-# CMake
-# ============================================================
+node_modules/
+dist/
 build/
-cmake-build-*/
-CMakeFiles/
-CMakeCache.txt
-cmake_install.cmake
-Makefile
-_deps/
-
-# ============================================================
-# Projucer / JUCE generated
-# ============================================================
-JuceLibraryCode/
-Builds/
-*.jucer.bak
-
-# ============================================================
-# Compiled plugin and app bundles
-# ============================================================
-*.vst3/
-*.component/
-*.aaxplugin/
-*.app/
-
-# ============================================================
-# C++ build artifacts
-# ============================================================
-*.o
-*.obj
-*.a
-*.lib
-*.so
-*.dylib
-*.ilk
-*.pdb
-*.exp
-*.exe
-
-# ============================================================
-# macOS
-# ============================================================
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
 .DS_Store
-**/.DS_Store
-__MACOSX/
-*.dSYM/
+*.swp
+*.swo
+*~
+.idea/
+.vscode/
 
-# ============================================================
-# Xcode
-# ============================================================
-xcuserdata/
-*.xcuserdata/
-*.xcodeproj/
-*.xcworkspace/
+# Xcode (abandoned Swift implementation - kept for safety)
+*.xcodeproj/xcuserdata/
+*.xcworkspace/xcuserdata/
 DerivedData/
 *.pbxuser
 *.mode1v3
 *.mode2v3
 *.perspectivev3
+xcuserdata/
 *.xccheckout
 *.moved-aside
 *.hmap
+*.ipa
 
-# ============================================================
-# Visual Studio / Windows
-# ============================================================
-.vs/
-*.aps
-*.vcxproj.user
-Thumbs.db
-ehthumbs.db
-Desktop.ini
-
-# ============================================================
-# IDE
-# ============================================================
-.idea/
-.vscode/
-
-# ============================================================
-# Editor swap/backup
-# ============================================================
-*.swp
-*.swo
-*~
+# JUCE (future VST/AU plugin)
+Builds/
+JuceLibraryCode/
+*.vst3
+*.component
+*.aaxplugin

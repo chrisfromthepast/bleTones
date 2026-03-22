@@ -96,8 +96,8 @@ public:
 void BLETonesAudioProcessorEditor::generateNetNodes (int W, int H)
 {
     netNodes.clear();
-    // Use a simple linear-congruential approach seeded by dimension
-    unsigned seed = 42u;
+    // Use a simple linear-congruential approach seeded by dimensions
+    unsigned seed = (unsigned) (W * 31 + H * 17 + 42);
     auto nextRand = [&seed]() -> float {
         seed = seed * 1103515245u + 12345u;
         return (float) ((seed >> 16) & 0x7FFF) / 32767.0f;
@@ -239,7 +239,7 @@ void BLETonesAudioProcessorEditor::paintBLEScannerPanel (juce::Graphics& g, int 
     const float hdrY = py + 14.0f;
     g.setColour (kColBlue);
     g.setFont (juce::Font (15.0f).boldened());
-    g.drawText (juce::CharPointer_UTF8 ("\xf0\x9f\x93\xa1 BLE Scanner"),
+    g.drawText ("BLE Scanner",
                 (int) (px + 14), (int) hdrY, (int) pw - 28, 22,
                 juce::Justification::centredLeft);
 
@@ -308,8 +308,8 @@ void BLETonesAudioProcessorEditor::paintBLEScannerPanel (juce::Graphics& g, int 
     {
         g.setColour (kColGreen.withAlpha (0.85f));
         g.setFont (juce::Font (10.5f));
-        g.drawFittedText (juce::CharPointer_UTF8 ("\xe2\x9c\x85 Receiving BLE data \xe2\x80\x93 "
-                          "detecting nearby devices!"),
+        g.drawFittedText ("Receiving BLE data - "
+                          "detecting nearby devices!",
                           (int) (px + 12), (int) (bottomMsgY + 6),
                           (int) pw - 24, 36,
                           juce::Justification::centredLeft, 2);
@@ -332,8 +332,6 @@ void BLETonesAudioProcessorEditor::paintCenterContent (juce::Graphics& g, int W,
 {
     const int centerX = kPanelMargin + kLeftPanelW + kPanelMargin;
     const int centerW = W - centerX - kRightPanelW - kPanelMargin * 2;
-    const int centerMidX = centerX + centerW / 2;
-    juce::ignoreUnused (centerMidX);
 
     // ── Animated orbs behind title ──────────────────────────────────────────
     for (int i = 0; i < (int) cachedDevices.size() && i < 6; ++i)

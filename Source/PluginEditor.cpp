@@ -1,26 +1,35 @@
 #include "PluginEditor.h"
+#include <cmath>
 
 //==============================================================================
 // Colour palette  (matching the original Electron / Web Audio look)
 //==============================================================================
-static const juce::Colour kColBg1    { 0xff1a1a2e };   // dark navy
-static const juce::Colour kColBg2    { 0xff16213e };   // mid navy
-static const juce::Colour kColBg3    { 0xff0f3460 };   // deep blue
-static const juce::Colour kColGold   { 0xffe8d5b7 };   // warm gold (title / thumb)
-static const juce::Colour kColMuted  { 0xff8e9aaf };   // muted blue-grey (body text)
-static const juce::Colour kColBlue   { 0xff64b4ff };   // accent blue (BLE panel)
-static const juce::Colour kColPanel  { 0xcc16213e };   // panel fill (semi-transparent)
-static const juce::Colour kColPanelB { 0x4d64b4ff };   // panel border
+static const juce::Colour kColBg1        { 0xff1a1a2e };  // dark navy
+static const juce::Colour kColBg2        { 0xff16213e };  // mid navy
+static const juce::Colour kColBg3        { 0xff0f3460 };  // deep blue
+static const juce::Colour kColGold       { 0xffe8d5b7 };  // warm gold (title / thumb)
+static const juce::Colour kColGoldDark   { 0xffb8a48c };  // darker gold (buttons)
+static const juce::Colour kColMuted      { 0xff8e9aaf };  // muted blue-grey (body text)
+static const juce::Colour kColBlue       { 0xff64b4ff };  // accent blue (BLE panel)
+static const juce::Colour kColBlueDim    { 0xff3d7ab8 };  // dimmer blue
+static const juce::Colour kColPanel      { 0xcc16213e };  // panel fill (semi-transparent)
+static const juce::Colour kColPanelB     { 0x4d64b4ff };  // panel border
+static const juce::Colour kColTextLight  { 0xffe8e8e8 };  // light text
+static const juce::Colour kColGreen      { 0xff4caf50 };  // status green
 
-// BLE signal-strength range used in all RSSI normalisation calls
-static constexpr float kRssiMin        = -100.0f;  // dBm – barely detectable
-static constexpr float kRssiMax        =  -30.0f;  // dBm – very close device
+// Layout constants
+static constexpr int kLeftPanelW    = 270;   // BLE Scanner panel width
+static constexpr int kRightPanelW   = 200;   // Sound Stats panel width
+static constexpr int kPanelMargin   = 16;    // margin around panels
+static constexpr int kBottomBarH    = 60;    // bottom info bar height
 
-// Animation: one complete sine cycle takes this many timer ticks (15 Hz × 3 s)
+// BLE signal-strength range
+static constexpr float kRssiMin        = -100.0f;
+static constexpr float kRssiMax        =  -30.0f;
+
+// Animation
 static constexpr float kAnimCycleFrames = 45.0f;
-
-// Maximum number of background orbs drawn (one per visible device)
-static constexpr int kMaxOrbs = 8;
+static constexpr int   kMaxDeviceRows   = 8;
 
 //==============================================================================
 // BLETonesLookAndFeel – warm-gold sliders on dark background
@@ -52,21 +61,21 @@ public:
         }
 
         constexpr float kTrackH = 4.0f;
-        constexpr float kThumbR = 8.0f;
+        constexpr float kThumbR = 7.0f;
         const float trackY  = y + (height - kTrackH) * 0.5f;
         const float thumbCX = sliderPos;
         const float thumbCY = y + height * 0.5f;
 
         // Track background
-        g.setColour (kColBlue.withAlpha (0.2f));
-        g.fillRoundedRectangle ((float)x, trackY, (float)width, kTrackH, kTrackH * 0.5f);
+        g.setColour (kColBlue.withAlpha (0.15f));
+        g.fillRoundedRectangle ((float) x, trackY, (float) width, kTrackH, kTrackH * 0.5f);
 
-        // Filled portion (left of thumb)
-        if (thumbCX > (float)x)
+        // Filled portion
+        if (thumbCX > (float) x)
         {
             g.setColour (kColGold.withAlpha (0.55f));
-            g.fillRoundedRectangle ((float)x, trackY,
-                                    thumbCX - (float)x, kTrackH, kTrackH * 0.5f);
+            g.fillRoundedRectangle ((float) x, trackY,
+                                    thumbCX - (float) x, kTrackH, kTrackH * 0.5f);
         }
 
         // Thumb
@@ -74,12 +83,32 @@ public:
         g.fillEllipse (thumbCX - kThumbR, thumbCY - kThumbR,
                        kThumbR * 2.0f, kThumbR * 2.0f);
 
-        // Thumb glow ring
-        g.setColour (kColGold.withAlpha (0.25f));
+        // Thumb glow
+        g.setColour (kColGold.withAlpha (0.2f));
         g.drawEllipse (thumbCX - kThumbR - 1.5f, thumbCY - kThumbR - 1.5f,
                        (kThumbR + 1.5f) * 2.0f, (kThumbR + 1.5f) * 2.0f, 1.5f);
     }
 };
+
+//==============================================================================
+// Network constellation node generation (deterministic from dimensions)
+//==============================================================================
+void BLETonesAudioProcessorEditor::generateNetNodes (int W, int H)
+{
+    netNodes.clear();
+    // Use a simple linear-congruential approach seeded by dimension
+    unsigned seed = 42u;
+    auto nextRand = [&seed]() -> float {
+        seed = seed * 1103515245u + 12345u;
+        return (float) ((seed >> 16) & 0x7FFF) / 32767.0f;
+    };
+
+    const int count = 25 + (W * H) / 30000;
+    for (int i = 0; i < count; ++i)
+    {
+        netNodes.push_back ({ nextRand() * (float) W, nextRand() * (float) H });
+    }
+}
 
 //==============================================================================
 // Constructor / Destructor
@@ -91,35 +120,29 @@ BLETonesAudioProcessorEditor::BLETonesAudioProcessorEditor (BLETonesAudioProcess
       volumeAttachment      (p.apvts, "volume",      volumeSlider),
       sensitivityAttachment (p.apvts, "sensitivity", sensitivitySlider)
 {
-    DBG ("[bleTones] Editor ctor");
-
     setLookAndFeel (customLookAndFeel.get());
-    setSize (520, 400);
+    setSize (900, 640);
 
     // Volume slider
     volumeLabel.setText ("Volume", juce::dontSendNotification);
     addAndMakeVisible (volumeLabel);
     volumeSlider.setSliderStyle (juce::Slider::LinearHorizontal);
-    volumeSlider.setTextBoxStyle (juce::Slider::TextBoxRight, false, 55, 22);
+    volumeSlider.setTextBoxStyle (juce::Slider::TextBoxRight, false, 50, 20);
     addAndMakeVisible (volumeSlider);
 
     // Sensitivity slider
     sensitivityLabel.setText ("Sensitivity", juce::dontSendNotification);
     addAndMakeVisible (sensitivityLabel);
     sensitivitySlider.setSliderStyle (juce::Slider::LinearHorizontal);
-    sensitivitySlider.setTextBoxStyle (juce::Slider::TextBoxRight, false, 55, 22);
+    sensitivitySlider.setTextBoxStyle (juce::Slider::TextBoxRight, false, 50, 20);
     addAndMakeVisible (sensitivitySlider);
 
-    // Status / device list drawn directly in paint() – hide JUCE label components
-    statusLabel.setVisible (false);
-    deviceListLabel.setVisible (false);
-
+    generateNetNodes (900, 640);
     startTimerHz (15);
 }
 
 BLETonesAudioProcessorEditor::~BLETonesAudioProcessorEditor()
 {
-    DBG ("[bleTones] Editor dtor");
     stopTimer();
     setLookAndFeel (nullptr);
 }
@@ -132,24 +155,197 @@ void BLETonesAudioProcessorEditor::paint (juce::Graphics& g)
     const int W = getWidth();
     const int H = getHeight();
 
-    // ── Background gradient ──────────────────────────────────────────────────
+    paintBackground      (g, W, H);
+    paintNetworkLines    (g, W, H);
+    paintBLEScannerPanel (g, W, H);
+    paintCenterContent   (g, W, H);
+    paintSoundStatsPanel (g, W, H);
+    paintBottomBar       (g, W, H);
+}
+
+//==============================================================================
+// paintBackground
+//==============================================================================
+void BLETonesAudioProcessorEditor::paintBackground (juce::Graphics& g, int W, int H)
+{
     juce::ColourGradient bg (kColBg1, 0.0f, 0.0f,
-                             kColBg3, 0.0f, (float)H, false);
+                             kColBg3, (float) W, (float) H, false);
     bg.addColour (0.5, kColBg2);
     g.setGradientFill (bg);
     g.fillAll();
+}
 
-    // ── Animated orbs – one per active BLE device ────────────────────────────
-    for (int i = 0; i < (int)cachedDevices.size() && i < kMaxOrbs; ++i)
+//==============================================================================
+// paintNetworkLines – decorative constellation lines like the Electron version
+//==============================================================================
+void BLETonesAudioProcessorEditor::paintNetworkLines (juce::Graphics& g, int W, int H)
+{
+    juce::ignoreUnused (W, H);
+
+    if (netNodes.empty())
+        return;
+
+    const float maxDist = 160.0f;
+
+    // Draw connections
+    for (size_t i = 0; i < netNodes.size(); ++i)
+    {
+        for (size_t j = i + 1; j < netNodes.size(); ++j)
+        {
+            const float dx   = netNodes[i].x - netNodes[j].x;
+            const float dy   = netNodes[i].y - netNodes[j].y;
+            const float dist = std::sqrt (dx * dx + dy * dy);
+
+            if (dist < maxDist)
+            {
+                float alpha = (1.0f - dist / maxDist) * 0.08f;
+                // Subtle pulse based on animation
+                alpha *= 0.7f + 0.3f * (0.5f + 0.5f * std::sin (animPhase + (float) i * 0.3f));
+                g.setColour (kColBlue.withAlpha (alpha));
+                g.drawLine (netNodes[i].x, netNodes[i].y,
+                            netNodes[j].x, netNodes[j].y, 0.8f);
+            }
+        }
+    }
+
+    // Draw nodes
+    for (size_t i = 0; i < netNodes.size(); ++i)
+    {
+        const float pulse = 0.5f + 0.5f * std::sin (animPhase * 0.8f + (float) i * 0.7f);
+        const float r = 1.2f + pulse * 1.0f;
+        g.setColour (kColBlue.withAlpha (0.1f + pulse * 0.08f));
+        g.fillEllipse (netNodes[i].x - r, netNodes[i].y - r, r * 2.0f, r * 2.0f);
+    }
+}
+
+//==============================================================================
+// paintBLEScannerPanel – left sidebar
+//==============================================================================
+void BLETonesAudioProcessorEditor::paintBLEScannerPanel (juce::Graphics& g, int /*W*/, int H)
+{
+    const float px = (float) kPanelMargin;
+    const float py = (float) kPanelMargin;
+    const float pw = (float) kLeftPanelW;
+    const float ph = (float) (H - kPanelMargin * 2 - kBottomBarH);
+    const juce::Rectangle<float> panel (px, py, pw, ph);
+
+    // Panel background
+    g.setColour (kColPanel);
+    g.fillRoundedRectangle (panel, 12.0f);
+    g.setColour (kColPanelB);
+    g.drawRoundedRectangle (panel, 12.0f, 1.0f);
+
+    // Header: "📡 BLE Scanner"
+    const float hdrY = py + 14.0f;
+    g.setColour (kColBlue);
+    g.setFont (juce::Font (15.0f).boldened());
+    g.drawText (juce::CharPointer_UTF8 ("\xf0\x9f\x93\xa1 BLE Scanner"),
+                (int) (px + 14), (int) hdrY, (int) pw - 28, 22,
+                juce::Justification::centredLeft);
+
+    // Scanning status with pulsing dot
+    const float statusY = hdrY + 28.0f;
+    const float dotPulse = 0.4f + 0.6f * (0.5f + 0.5f * std::sin (animPhase * 2.0f));
+
+    // Pulsing dot
+    g.setColour (kColBlue.withAlpha (dotPulse));
+    g.fillEllipse (px + 16.0f, statusY + 4.0f, 7.0f, 7.0f);
+
+    g.setColour (kColMuted);
+    g.setFont (juce::Font (11.5f));
+    g.drawText ("Listening on UDP 9000...",
+                (int) (px + 28), (int) statusY, (int) pw - 44, 16,
+                juce::Justification::centredLeft);
+
+    // Separator
+    const float sepY = statusY + 24.0f;
+    g.setColour (kColBlue.withAlpha (0.15f));
+    g.drawHorizontalLine ((int) sepY, px + 10.0f, px + pw - 10.0f);
+
+    // Device list
+    const float rowY0  = sepY + 10.0f;
+    constexpr float kRowH = 26.0f;
+
+    if (cachedDevices.empty())
+    {
+        const float waitAlpha = 0.35f + 0.25f * (0.5f + 0.5f * std::sin (animPhase * 1.2f));
+        g.setColour (kColMuted.withAlpha (waitAlpha));
+        g.setFont (juce::Font (12.0f));
+        g.drawFittedText ("Waiting for devices...",
+                          (int) (px + 14), (int) rowY0, (int) pw - 28, 60,
+                          juce::Justification::centred, 2);
+    }
+    else
+    {
+        const int maxShow = std::min ((int) cachedDevices.size(), kMaxDeviceRows);
+        for (int i = 0; i < maxShow; ++i)
+        {
+            const auto& dev = cachedDevices[(size_t) i];
+            const float rowY = rowY0 + (float) i * kRowH;
+
+            // Device name
+            g.setColour (kColTextLight);
+            g.setFont (juce::Font (12.0f));
+            g.drawText (dev.name,
+                        (int) (px + 16), (int) rowY, 150, (int) kRowH,
+                        juce::Justification::centredLeft, true);
+
+            // RSSI value (right-aligned, monospace)
+            g.setColour (kColBlue);
+            g.setFont (juce::Font (juce::Font::getDefaultMonospacedFontName(), 11.5f, 0));
+            g.drawText (juce::String (dev.rssi) + "  dBm",
+                        (int) (px + pw - 90), (int) rowY, 76, (int) kRowH,
+                        juce::Justification::centredRight);
+        }
+    }
+
+    // Bottom status message in panel
+    const float bottomMsgY = panel.getBottom() - 52.0f;
+    g.setColour (kColBlue.withAlpha (0.12f));
+    g.drawHorizontalLine ((int) bottomMsgY, px + 10.0f, px + pw - 10.0f);
+
+    if (! cachedDevices.empty())
+    {
+        g.setColour (kColGreen.withAlpha (0.85f));
+        g.setFont (juce::Font (10.5f));
+        g.drawFittedText (juce::CharPointer_UTF8 ("\xe2\x9c\x85 Receiving BLE data \xe2\x80\x93 "
+                          "detecting nearby devices!"),
+                          (int) (px + 12), (int) (bottomMsgY + 6),
+                          (int) pw - 24, 36,
+                          juce::Justification::centredLeft, 2);
+    }
+    else
+    {
+        g.setColour (kColMuted.withAlpha (0.5f));
+        g.setFont (juce::Font (10.5f));
+        g.drawFittedText ("Launch bleTones Helper to begin scanning",
+                          (int) (px + 12), (int) (bottomMsgY + 6),
+                          (int) pw - 24, 36,
+                          juce::Justification::centredLeft, 2);
+    }
+}
+
+//==============================================================================
+// paintCenterContent – title, subtitle, status
+//==============================================================================
+void BLETonesAudioProcessorEditor::paintCenterContent (juce::Graphics& g, int W, int H)
+{
+    const int centerX = kPanelMargin + kLeftPanelW + kPanelMargin;
+    const int centerW = W - centerX - kRightPanelW - kPanelMargin * 2;
+    const int centerMidX = centerX + centerW / 2;
+    juce::ignoreUnused (centerMidX);
+
+    // ── Animated orbs behind title ──────────────────────────────────────────
+    for (int i = 0; i < (int) cachedDevices.size() && i < 6; ++i)
     {
         const float rssiNorm = juce::jlimit (0.0f, 1.0f,
-            juce::jmap ((float)cachedDevices[(size_t)i].rssi, kRssiMin, kRssiMax, 0.0f, 1.0f));
-        const float pulse  = 0.5f + 0.5f * std::sin (animPhase + (float)i * 1.3f);
-        const float radius = 40.0f + rssiNorm * 80.0f;
-        const float cx = (float)W * ((float)(i + 1) / ((float)cachedDevices.size() + 1.0f));
-        const float cy = (float)H * 0.46f;
+            juce::jmap ((float) cachedDevices[(size_t) i].rssi, kRssiMin, kRssiMax, 0.0f, 1.0f));
+        const float pulse  = 0.5f + 0.5f * std::sin (animPhase + (float) i * 1.5f);
+        const float radius = 30.0f + rssiNorm * 60.0f;
+        const float cx     = (float) centerX + (float) centerW * ((float) (i + 1) / ((float) cachedDevices.size() + 1.0f));
+        const float cy     = (float) H * 0.38f;
 
-        juce::ColourGradient orb (kColBlue.withAlpha (0.12f * pulse),
+        juce::ColourGradient orb (kColBlue.withAlpha (0.10f * pulse),
                                    cx, cy,
                                    juce::Colours::transparentBlack,
                                    cx + radius, cy, true);
@@ -157,121 +353,142 @@ void BLETonesAudioProcessorEditor::paint (juce::Graphics& g)
         g.fillEllipse (cx - radius, cy - radius, radius * 2.0f, radius * 2.0f);
     }
 
-    // ── Title "bleTones" ─────────────────────────────────────────────────────
-    // Soft glow pass
-    g.setColour (kColGold.withAlpha (0.08f));
-    g.setFont (juce::Font (44.0f).withExtraKerningFactor (0.15f));
-    g.drawFittedText ("bleTones", 0, 14, W, 52, juce::Justification::centred, 1);
+    // ── Title "bleTones" ────────────────────────────────────────────────────
+    const float titleY = (float) H * 0.28f;
+
+    // Glow pass
+    g.setColour (kColGold.withAlpha (0.06f));
+    g.setFont (juce::Font (52.0f).withExtraKerningFactor (0.25f));
+    g.drawFittedText ("b l e T o n e s",
+                      centerX, (int) (titleY - 4), centerW, 60,
+                      juce::Justification::centred, 1);
 
     // Main title
     g.setColour (kColGold);
-    g.setFont (juce::Font (38.0f).withExtraKerningFactor (0.15f));
-    g.drawFittedText ("bleTones", 0, 18, W, 46, juce::Justification::centred, 1);
+    g.setFont (juce::Font (48.0f).withExtraKerningFactor (0.25f));
+    g.drawFittedText ("b l e T o n e s",
+                      centerX, (int) titleY, centerW, 56,
+                      juce::Justification::centred, 1);
 
     // ── Subtitle ─────────────────────────────────────────────────────────────
     g.setColour (kColMuted);
-    g.setFont (juce::Font (10.5f).withExtraKerningFactor (0.2f));
-    g.drawFittedText ("GENERATIVE SOUND EXPERIENCE",
-                      0, 65, W, 16, juce::Justification::centred, 1);
+    g.setFont (juce::Font (10.0f).withExtraKerningFactor (0.22f));
+    g.drawFittedText ("GENERATIVE  SOUND  EXPERIENCE",
+                      centerX, (int) (titleY + 62), centerW, 16,
+                      juce::Justification::centred, 1);
 
-    // Thin separator
-    g.setColour (kColMuted.withAlpha (0.15f));
-    g.drawHorizontalLine (84, 20.0f, (float)(W - 20));
+    // ── Status indicator ────────────────────────────────────────────────────
+    const float statusY = titleY + 110.0f;
+    const float statusW = 180.0f;
+    const float statusH = 42.0f;
+    const float statusX = (float) centerX + ((float) centerW - statusW) / 2.0f;
 
-    // ── BLE device panel ─────────────────────────────────────────────────────
-    const juce::Rectangle<float> panel (12.0f, 91.0f, (float)(W - 24), 190.0f);
-
-    // Panel fill + border
-    g.setColour (kColPanel);
-    g.fillRoundedRectangle (panel, 10.0f);
-    g.setColour (kColPanelB);
-    g.drawRoundedRectangle (panel, 10.0f, 1.0f);
-
-    // Panel header "BLE DEVICES"
-    g.setColour (kColBlue);
-    g.setFont (juce::Font (11.5f).withExtraKerningFactor (0.08f));
-    g.drawText ("BLE DEVICES",
-                (int)panel.getX() + 14, (int)panel.getY() + 11,
-                160, 18, juce::Justification::centredLeft);
-
-    // Pulsing scanning dot (top-right of panel)
-    const float scanPulse = 0.45f + 0.55f * (0.5f + 0.5f * std::sin (animPhase * 2.2f));
-    g.setColour (kColBlue.withAlpha (scanPulse));
-    constexpr float kDotR = 4.0f;
-    g.fillEllipse (panel.getRight() - 18.0f - kDotR,
-                   panel.getY() + 11.0f + (18.0f - kDotR * 2.0f) * 0.5f,
-                   kDotR * 2.0f, kDotR * 2.0f);
-
-    // Separator inside panel
-    g.setColour (kColBlue.withAlpha (0.18f));
-    g.drawHorizontalLine ((int)panel.getY() + 32,
-                           panel.getX() + 8.0f, panel.getRight() - 8.0f);
-
-    if (cachedDevices.empty())
+    // Button-like status pill
+    if (! cachedDevices.empty())
     {
-        // Waiting state – pulse the message gently
-        const float waitAlpha = 0.35f + 0.3f * (0.5f + 0.5f * std::sin (animPhase * 1.2f));
-        g.setColour (kColMuted.withAlpha (waitAlpha));
-        g.setFont (juce::Font (12.0f));
-        g.drawFittedText ("Waiting for BLE helper on UDP 9000\u2026",
-                           (int)panel.getX(), (int)panel.getY() + 42,
-                           (int)panel.getWidth(), 44,
-                           juce::Justification::centred, 2);
+        // Playing state – golden filled pill
+        g.setColour (kColGoldDark.withAlpha (0.35f));
+        g.fillRoundedRectangle (statusX, statusY, statusW, statusH, statusH / 2.0f);
+        g.setColour (kColGold.withAlpha (0.5f));
+        g.drawRoundedRectangle (statusX, statusY, statusW, statusH, statusH / 2.0f, 1.0f);
 
-        g.setColour (kColMuted.withAlpha (0.35f));
-        g.setFont (juce::Font (10.5f));
-        g.drawFittedText ("Launch bleTones Helper to begin scanning",
-                           (int)panel.getX(), (int)panel.getY() + 95,
-                           (int)panel.getWidth(), 72,
-                           juce::Justification::centred, 2);
+        const float playPulse = 0.7f + 0.3f * (0.5f + 0.5f * std::sin (animPhase * 1.5f));
+        g.setColour (kColGold.withAlpha (playPulse));
+        g.setFont (juce::Font (14.0f).withExtraKerningFactor (0.15f).boldened());
+        g.drawFittedText ("PLAYING...",
+                          (int) statusX, (int) statusY, (int) statusW, (int) statusH,
+                          juce::Justification::centred, 1);
     }
     else
     {
-        // ── Device rows ──────────────────────────────────────────────────────
-        constexpr int   kMaxShow = 5;
-        constexpr float kRowH    = 29.0f;
-        const float     rowY0    = panel.getY() + 37.0f;
-        const float     nameX    = panel.getX() + 14.0f;
-        const float     nameW    = 165.0f;
-        const float     barMaxW  = panel.getWidth() - nameW - 76.0f - 14.0f;
-        const float     barX     = nameX + nameW;
+        // Idle state
+        g.setColour (kColMuted.withAlpha (0.2f));
+        g.fillRoundedRectangle (statusX, statusY, statusW, statusH, statusH / 2.0f);
+        g.setColour (kColMuted.withAlpha (0.3f));
+        g.drawRoundedRectangle (statusX, statusY, statusW, statusH, statusH / 2.0f, 1.0f);
 
-        for (int i = 0; i < std::min ((int)cachedDevices.size(), kMaxShow); ++i)
-        {
-            const auto&  dev     = cachedDevices[(size_t)i];
-            const float  rssiN   = juce::jlimit (0.0f, 1.0f,
-                juce::jmap ((float)dev.rssi, kRssiMin, kRssiMax, 0.0f, 1.0f));
-            const float  rowY    = rowY0 + (float)i * kRowH;
-            const float  barW    = barMaxW * rssiN;
-            const float  barCtrY = rowY + kRowH * 0.5f;
-
-            // Device name
-            g.setColour (kColMuted);
-            g.setFont (juce::Font (12.0f));
-            g.drawText (dev.name,
-                        (int)nameX, (int)rowY, (int)nameW, (int)kRowH,
-                        juce::Justification::centredLeft, true);
-
-            // RSSI bar background
-            g.setColour (kColBlue.withAlpha (0.12f));
-            g.fillRoundedRectangle (barX, barCtrY - 3.0f, barMaxW, 6.0f, 3.0f);
-
-            // RSSI bar filled
-            if (barW > 0.0f)
-            {
-                g.setColour (kColBlue.withAlpha (0.3f + 0.7f * rssiN));
-                g.fillRoundedRectangle (barX, barCtrY - 3.0f, barW, 6.0f, 3.0f);
-            }
-
-            // RSSI value (monospace)
-            g.setColour (kColBlue);
-            g.setFont (juce::Font (juce::Font::getDefaultMonospacedFontName(), 11.0f, 0));
-            g.drawText (juce::String (dev.rssi) + " dB",
-                        (int)(panel.getRight() - 70.0f), (int)rowY,
-                        64, (int)kRowH,
-                        juce::Justification::centredRight);
-        }
+        g.setColour (kColMuted.withAlpha (0.6f));
+        g.setFont (juce::Font (14.0f).withExtraKerningFactor (0.15f));
+        g.drawFittedText ("IDLE",
+                          (int) statusX, (int) statusY, (int) statusW, (int) statusH,
+                          juce::Justification::centred, 1);
     }
+}
+
+//==============================================================================
+// paintSoundStatsPanel – right sidebar
+//==============================================================================
+void BLETonesAudioProcessorEditor::paintSoundStatsPanel (juce::Graphics& g, int W, int /*H*/)
+{
+    const float px = (float) (W - kPanelMargin - kRightPanelW);
+    const float py = (float) kPanelMargin;
+    const float pw = (float) kRightPanelW;
+    const float ph = 160.0f;
+    const juce::Rectangle<float> panel (px, py, pw, ph);
+
+    // Panel background
+    g.setColour (kColPanel);
+    g.fillRoundedRectangle (panel, 12.0f);
+    g.setColour (kColPanelB);
+    g.drawRoundedRectangle (panel, 12.0f, 1.0f);
+
+    // Header
+    g.setColour (kColTextLight);
+    g.setFont (juce::Font (14.0f).boldened());
+    g.drawText ("Sound Stats",
+                (int) (px + 14), (int) (py + 12), (int) pw - 28, 20,
+                juce::Justification::centredLeft);
+
+    // Separator
+    g.setColour (kColMuted.withAlpha (0.15f));
+    g.drawHorizontalLine ((int) (py + 38), px + 10.0f, px + pw - 10.0f);
+
+    // Stats rows
+    const float rowX  = px + 14.0f;
+    const float valX  = px + pw - 14.0f;
+    constexpr float rowH = 26.0f;
+    float rowY = py + 48.0f;
+
+    auto drawStatRow = [&] (const juce::String& label, const juce::String& value)
+    {
+        g.setColour (kColMuted);
+        g.setFont (juce::Font (12.0f));
+        g.drawText (label, (int) rowX, (int) rowY, 120, (int) rowH,
+                    juce::Justification::centredLeft);
+
+        g.setColour (kColTextLight);
+        g.setFont (juce::Font (juce::Font::getDefaultMonospacedFontName(), 13.0f, 0));
+        g.drawText (value, (int) rowX, (int) rowY, (int) (valX - rowX), (int) rowH,
+                    juce::Justification::centredRight);
+        rowY += rowH;
+    };
+
+    drawStatRow ("Active Voices:", juce::String (cachedActiveVoices));
+    drawStatRow ("Devices:",       juce::String ((int) cachedDevices.size()));
+    drawStatRow ("OSC Port:",      "9000");
+}
+
+//==============================================================================
+// paintBottomBar
+//==============================================================================
+void BLETonesAudioProcessorEditor::paintBottomBar (juce::Graphics& g, int W, int H)
+{
+    const float barY = (float) (H - kBottomBarH);
+
+    // Subtle top border
+    g.setColour (kColMuted.withAlpha (0.1f));
+    g.drawHorizontalLine ((int) barY, 0.0f, (float) W);
+
+    // Info text
+    g.setColour (kColMuted.withAlpha (0.6f));
+    g.setFont (juce::Font (11.0f));
+    g.drawFittedText ("BLE devices generate sounds based on signal strength changes",
+                      0, (int) barY + 10, W, 16, juce::Justification::centred, 1);
+
+    g.setColour (kColMuted.withAlpha (0.45f));
+    g.setFont (juce::Font (10.5f));
+    g.drawFittedText ("Receives OSC from bleTones Helper on localhost:9000",
+                      0, (int) barY + 30, W, 16, juce::Justification::centred, 1);
 }
 
 //==============================================================================
@@ -279,26 +496,32 @@ void BLETonesAudioProcessorEditor::paint (juce::Graphics& g)
 //==============================================================================
 void BLETonesAudioProcessorEditor::resized()
 {
-    // Title (y=18–64), subtitle (y=65), separator (y=84), and the BLE panel
-    // (y=91, h=190, bottom=281) are all drawn in paint() without JUCE components.
-    // Controls live below the panel with a small gap.
+    const int W = getWidth();
+    const int H = getHeight();
 
-    auto area = getLocalBounds().reduced (12);
+    // Sliders live in the center column, below the title area
+    const int centerX = kPanelMargin + kLeftPanelW + kPanelMargin;
+    const int centerW = W - centerX - kRightPanelW - kPanelMargin * 2;
 
-    // Skip over the painted header + panel area (absolute y=295 → offset 283).
-    area.removeFromTop (283);
+    // Position sliders in the lower-center area
+    const int sliderAreaY = (int) ((float) H * 0.72f);
+    const int sliderW = std::min (centerW - 20, 320);
+    const int sliderX = centerX + (centerW - sliderW) / 2;
 
-    auto makeRow = [&] (int h) { return area.removeFromTop (h).reduced (0, 2); };
+    auto makeRow = [&] (int y, int h) {
+        return juce::Rectangle<int> (sliderX, y, sliderW, h);
+    };
 
-    auto volRow = makeRow (32);
-    volumeLabel.setBounds  (volRow.removeFromLeft (100));
+    auto volRow = makeRow (sliderAreaY, 28);
+    volumeLabel.setBounds (volRow.removeFromLeft (90));
     volumeSlider.setBounds (volRow);
 
-    area.removeFromTop (6);
-
-    auto senRow = makeRow (32);
-    sensitivityLabel.setBounds  (senRow.removeFromLeft (100));
+    auto senRow = makeRow (sliderAreaY + 36, 28);
+    sensitivityLabel.setBounds (senRow.removeFromLeft (90));
     sensitivitySlider.setBounds (senRow);
+
+    // Regenerate network nodes if window was resized
+    generateNetNodes (W, H);
 }
 
 //==============================================================================
@@ -306,7 +529,8 @@ void BLETonesAudioProcessorEditor::resized()
 //==============================================================================
 void BLETonesAudioProcessorEditor::timerCallback()
 {
-    cachedDevices = audioProcessor.getDevicesCopy();
+    cachedDevices      = audioProcessor.getDevicesCopy();
+    cachedActiveVoices = audioProcessor.getActiveVoiceCount();
 
     // Advance animation phase (~3-second cycle at 15 Hz)
     animPhase += juce::MathConstants<float>::twoPi / kAnimCycleFrames;

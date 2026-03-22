@@ -70,6 +70,9 @@ public:
     /** Thread-safe snapshot of the current device table (for the editor). */
     std::vector<BLEDevice> getDevicesCopy() const;
 
+    /** Returns the number of currently active voices (for display). */
+    int getActiveVoiceCount() const;
+
     // RSSI and note range constants used for frequency / velocity mapping
     static constexpr int kMinRSSI     = -100; // dBm – barely detectable
     static constexpr int kMaxRSSI     =  -30; // dBm – very close device

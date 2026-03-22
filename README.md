@@ -31,13 +31,26 @@ host DAW's Info.plist is irrelevant.
 
 ## Prerequisites
 
+### macOS
+
 | Tool | Version | Notes |
 |------|---------|-------|
-| CMake | 3.22+ | [cmake.org](https://cmake.org/download/) |
-| C++ compiler | C++17 | Xcode / MSVC / Clang |
-| Git | any | needed by CMake FetchContent |
-| macOS SDK | 12+ | for AU and CoreBluetooth helper |
-| Windows SDK | 10.0.19041+ | for WinRT BLE helper |
+| Xcode | 14+ | Install from the [Mac App Store](https://apps.apple.com/app/xcode/id497799835). Includes the compiler, SDK, and AU support. |
+| Xcode Command Line Tools | (included with Xcode) | Or install standalone: `xcode-select --install` |
+| CMake | 3.22+ | `brew install cmake` or [cmake.org](https://cmake.org/download/) |
+| Git | any | Included with Xcode CLT, or `brew install git` |
+
+> **Note:** Full Xcode (not just Command Line Tools) is required to build AU
+> plugins and to use the Xcode IDE workflow described in Option A.
+
+### Windows
+
+| Tool | Version | Notes |
+|------|---------|-------|
+| Visual Studio | 2022 (or 2019) | Include the **Desktop development with C++** workload |
+| CMake | 3.22+ | Bundled with Visual Studio, or [cmake.org](https://cmake.org/download/) |
+| Git | any | [git-scm.com](https://git-scm.com/download/win) |
+| Windows SDK | 10.0.19041+ | Included with the Visual Studio C++ workload |
 
 > **JUCE is fetched automatically** by CMake's `FetchContent` — no manual
 > download or submodule initialisation required.
@@ -46,21 +59,55 @@ host DAW's Info.plist is irrelevant.
 
 ## Building
 
-### 1 — Clone & configure
+There are two supported workflows: **CMake** (recommended, works in the terminal
+and generates projects for any IDE) and **Projucer** (Xcode-only, requires a
+manual JUCE installation). Most users should use CMake.
+
+---
+
+### Option A — CMake (recommended)
+
+#### 1 — Clone the repository
 
 ```bash
 git clone https://github.com/chrisfromthepast/bleTones.git
 cd bleTones
+```
 
-# Configure (downloads JUCE on first run — takes ~2 minutes)
+#### 2 — Configure
+
+The first run downloads JUCE (~400 MB) and may take **2–5 minutes** depending
+on your internet connection. Subsequent runs are instant.
+
+**macOS / Linux (Makefile or Ninja build — terminal only):**
+```bash
 cmake -B build -DCMAKE_BUILD_TYPE=Release
 ```
 
-### 2 — Build plugin + helper
+**macOS — generate an Xcode project (open in Xcode IDE):**
+```bash
+cmake -B build -G Xcode
+```
+Then open `build/bleTones.xcodeproj` in Xcode, select the **bleTones -
+Standalone** or **bleTones - AU** scheme, and press **⌘B** to build.
+
+**Windows — generate a Visual Studio solution:**
+```bat
+cmake -B build -G "Visual Studio 17 2022"
+```
+Then open `build\bleTones.sln` in Visual Studio and build the `Release`
+configuration.
+
+#### 3 — Build from the terminal
 
 ```bash
 cmake --build build --config Release
 ```
+
+> **Tip (macOS):** Pass `-j$(sysctl -n hw.logicalcpu)` to use all CPU cores:
+> ```bash
+> cmake --build build --config Release -j$(sysctl -n hw.logicalcpu)
+> ```
 
 Built artefacts:
 
@@ -68,11 +115,12 @@ Built artefacts:
 |----------|----------|
 | VST3 plugin | `build/bleTones_artefacts/Release/VST3/bleTones.vst3` |
 | AU plugin (macOS) | `build/bleTones_artefacts/Release/AU/bleTones.component` |
-| Standalone app | `build/bleTones_artefacts/Release/Standalone/bleTones` |
+| Standalone app (macOS) | `build/bleTones_artefacts/Release/Standalone/bleTones.app` |
+| Standalone app (Windows) | `build/bleTones_artefacts/Release/Standalone/bleTones.exe` |
 | BLE Helper (macOS) | `build/helper/bleTones_helper.app` |
 | BLE Helper (Windows) | `build/helper/Release/bleTones_helper.exe` |
 
-### 3 — Install the plugin
+#### 4 — Install the plugin
 
 **macOS VST3:**
 ```bash
@@ -86,11 +134,51 @@ cp -r "build/bleTones_artefacts/Release/AU/bleTones.component" \
       ~/Library/Audio/Plug-Ins/Components/
 ```
 
+After copying an AU, reset the Audio Unit cache so your DAW picks it up:
+```bash
+killall -9 AudioComponentRegistrar 2>/dev/null; auval -a 2>/dev/null | grep -i bletones
+```
+
 **Windows VST3:**
+```bat
+xcopy /E /I "build\bleTones_artefacts\Release\VST3\bleTones.vst3" ^
+      "C:\Program Files\Common Files\VST3\bleTones.vst3"
 ```
-copy build\bleTones_artefacts\Release\VST3\bleTones.vst3
-     C:\Program Files\Common Files\VST3\
-```
+
+---
+
+### Option B — Projucer / Xcode (macOS only)
+
+The file `bleTones/bleTones.jucer` is a [Projucer](https://juce.com/discover/projucer)
+project. Use this only if you already have JUCE installed and prefer working
+entirely inside Xcode without CMake.
+
+**Requirements:**
+- JUCE 8.0.0+ downloaded and placed at `../JUCE` relative to the repository root
+  (i.e. the `JUCE` folder must be a sibling of the `bleTones` repository folder).
+- Projucer (ships with JUCE) — open it from `JUCE/extras/Projucer/Builds/MacOSX/build/Release/Projucer.app`.
+
+**Steps:**
+1. Open `bleTones/bleTones.jucer` in Projucer.
+2. Click **Save and Open in IDE** (⌘S) — this generates the Xcode project under
+   `bleTones/Builds/MacOSX/`.
+3. Build and run from Xcode.
+
+> **Note:** The Projucer workflow does **not** build the BLE helper. Use the
+> CMake workflow if you need the helper process.
+
+---
+
+### Troubleshooting
+
+| Symptom | Fix |
+|---------|-----|
+| `cmake: command not found` | Install CMake: `brew install cmake` (macOS) or download from cmake.org |
+| `xcode-select: error: tool 'xcodebuild' requires Xcode` | Install full Xcode from the Mac App Store (not just CLT) |
+| CMake configure hangs for several minutes | Normal — JUCE is being downloaded (~400 MB). Wait it out. |
+| `Error: No CMAKE_CXX_COMPILER` (macOS) | Run `sudo xcode-select --switch /Applications/Xcode.app/Contents/Developer` |
+| AU plugin not found in DAW after install | Run `killall -9 AudioComponentRegistrar` and rescan in your DAW |
+| Bluetooth permission denied on first launch | macOS will show a system dialog — click **Allow**. If missed, go to **System Settings → Privacy & Security → Bluetooth** and enable bleTones Helper. |
 
 ---
 

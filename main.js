@@ -2,10 +2,12 @@ const { app, BrowserWindow, ipcMain } = require('electron');
 const path = require('path');
 
 let noble;
+let bleLoadError = null;
 try {
     noble = require('@abandonware/noble');
 } catch (e) {
     console.warn('BLE module not available:', e.message);
+    bleLoadError = e.message;
     noble = null;
 }
 
@@ -83,7 +85,7 @@ ipcMain.handle('start-ble-scan', async () => {
     console.log('Starting BLE scan...');
     
     if (!noble) {
-        throw new Error('BLE module not available. Use Mouse/Touch or Demo mode instead.');
+        throw new Error(`BLE module not available: ${bleLoadError || 'unknown error'}. Use Mouse/Touch or Demo mode instead.`);
     }
     
     // Initialize BLE event listeners (only once)

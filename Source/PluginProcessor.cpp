@@ -15,6 +15,9 @@ static constexpr int kPhrygian[]        = { 0, 1, 3, 5, 7, 8, 10 };
 static constexpr int kLydian[]          = { 0, 2, 4, 6, 7, 9, 11 };
 static constexpr int kMixolydian[]      = { 0, 2, 4, 5, 7, 9, 10 };
 static constexpr int kChromatic[]       = { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11 };
+// Halloween Spooky scale – uses diminished/tritone intervals for eerie sound
+// Classic horror movie intervals: minor 2nd, tritone, minor 6th create tension
+static constexpr int kHalloweenSpooky[] = { 0, 1, 3, 6, 8, 9, 11 };
 
 struct ScaleInfo
 {
@@ -33,6 +36,7 @@ static constexpr ScaleInfo kAllScales[] =
     { kLydian,          7  },
     { kMixolydian,      7  },
     { kChromatic,       12 },
+    { kHalloweenSpooky, 7  },
 };
 
 const juce::StringArray& BLETonesAudioProcessor::getScaleNames()
@@ -47,7 +51,8 @@ const juce::StringArray& BLETonesAudioProcessor::getScaleNames()
         "Phrygian",
         "Lydian",
         "Mixolydian",
-        "Chromatic"
+        "Chromatic",
+        "Halloween Spooky"
     };
     return names;
 }
@@ -100,6 +105,11 @@ juce::AudioProcessorValueTreeState::ParameterLayout
         "Scale / Mode",
         getScaleNames(),
         0));  // Default: Minor Pentatonic
+
+    layout.add (std::make_unique<juce::AudioParameterBool> (
+        "halloweenMode",
+        "Halloween Mode",
+        false));  // Default: off
 
     return layout;
 }
@@ -160,16 +170,34 @@ void BLETonesAudioProcessor::prepareToPlay (double sr, int /*samplesPerBlock*/)
     for (auto& v : voices)
         v = {};
 
-    // Configure reverb for spacious ambient sound
+    // Configure reverb - will be updated in processBlock based on Halloween mode
+    updateReverbForHalloweenMode (*apvts.getRawParameterValue ("halloweenMode") > 0.5f);
+}
+
+void BLETonesAudioProcessor::updateReverbForHalloweenMode (bool halloween)
+{
     juce::Reverb::Parameters rp;
-    rp.roomSize   = 0.75f;
-    rp.damping    = 0.4f;
-    rp.wetLevel   = 0.30f;
-    rp.dryLevel   = 0.70f;
-    rp.width      = 1.0f;
-    rp.freezeMode = 0.0f;
+    if (halloween)
+    {
+        // Spooky reverb: larger cavernous room, more echo, ethereal wet signal
+        rp.roomSize   = 0.92f;   // Very large haunted space
+        rp.damping    = 0.25f;   // Less damping = more echo
+        rp.wetLevel   = 0.50f;   // More reverb for ghostly effect
+        rp.dryLevel   = 0.50f;
+        rp.width      = 1.0f;
+        rp.freezeMode = 0.0f;
+    }
+    else
+    {
+        // Normal spacious ambient sound
+        rp.roomSize   = 0.75f;
+        rp.damping    = 0.4f;
+        rp.wetLevel   = 0.30f;
+        rp.dryLevel   = 0.70f;
+        rp.width      = 1.0f;
+        rp.freezeMode = 0.0f;
+    }
     reverb.setParameters (rp);
-    reverb.reset();
 }
 
 void BLETonesAudioProcessor::releaseResources() {}
@@ -409,11 +437,14 @@ void BLETonesAudioProcessor::activateVoice (const PendingNote& note)
         }
     }
 
+    const bool halloween = *apvts.getRawParameterValue ("halloweenMode") > 0.5f;
+
     auto& v        = voices[bestIdx];
     v.active       = true;
     v.phase1       = 0.0;
     v.phase2       = 0.0;
     v.phaseSub     = 0.0;
+    v.phaseTrem    = 0.0;
     v.frequency    = note.frequency;
     v.amplitude    = note.amplitude;
     v.envelope     = 1.0f;  // Start at full envelope
@@ -423,21 +454,43 @@ void BLETonesAudioProcessor::activateVoice (const PendingNote& note)
     //   envelope *= envDecay  each sample
     //   envDecay^(sr * decaySec) ≈ 0.001
     //   envDecay = 0.001^(1 / (sr * decaySec))
-    const double totalSamples = sampleRate * (double) note.decaySec;
+    // Halloween mode: longer decay for spookier, more sustained sounds
+    const float decayMultiplier = halloween ? 1.6f : 1.0f;
+    const double totalSamples = sampleRate * (double) (note.decaySec * decayMultiplier);
     v.envDecay = (totalSamples > 0.0)
         ? static_cast<float> (std::pow (0.001, 1.0 / totalSamples))
         : 0.0f;
 
-    // Slight random detune for warmth (range ≈ 1.001–1.006)
-    v.detuneRatio = 1.001f
-        + (float) (hashName (juce::String (note.frequency)) % kDetuneHashRange) * kDetuneStep;
+    // Halloween mode: wider detune for eerie dissonance
+    // Normal: range ≈ 1.001–1.006
+    // Halloween: range ≈ 1.003–1.015 for more detuned, unsettling sound
+    if (halloween)
+    {
+        v.detuneRatio = 1.003f
+            + (float) (hashName (juce::String (note.frequency)) % kDetuneHashRange) * kDetuneStep * 3.0f;
+        // Spooky tremolo effect - rate varies per voice for eerie wavering
+        v.tremRate  = 4.0f + (float) (hashName (juce::String (note.frequency)) % 10) * 0.5f;
+        v.tremDepth = 0.25f; // 25% amplitude modulation for ghostly waver
+    }
+    else
+    {
+        v.detuneRatio = 1.001f
+            + (float) (hashName (juce::String (note.frequency)) % kDetuneHashRange) * kDetuneStep;
+        v.tremRate  = 0.0f;
+        v.tremDepth = 0.0f;
+    }
 
     // Sub oscillator louder for lower frequencies (warmer bass, thinner treble)
-    v.subMix = juce::jlimit (0.0f, 0.4f,
+    // Halloween mode: more prominent sub for darker, heavier sound
+    const float subBase = halloween ? 0.55f : 0.4f;
+    v.subMix = juce::jlimit (0.0f, subBase,
         1.0f - static_cast<float> (note.frequency / 600.0));
 
     // Low-pass filter coefficient – lower for low notes, higher for high notes
-    v.filterCoef = juce::jlimit (0.15f, 0.6f,
+    // Halloween mode: darker tones with lower filter cutoff
+    const float filterMin = halloween ? 0.10f : 0.15f;
+    const float filterMax = halloween ? 0.45f : 0.6f;
+    v.filterCoef = juce::jlimit (filterMin, filterMax,
         static_cast<float> (note.frequency / 1200.0));
     v.filterState = 0.0f;
 }
@@ -450,6 +503,14 @@ void BLETonesAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
                                             juce::MidiBuffer&         midiMessages)
 {
     juce::ScopedNoDenormals noDenormals;
+
+    // Check if Halloween mode changed and update reverb if needed
+    const bool halloween = *apvts.getRawParameterValue ("halloweenMode") > 0.5f;
+    if (halloween != lastHalloweenMode)
+    {
+        updateReverbForHalloweenMode (halloween);
+        lastHalloweenMode = halloween;
+    }
     buffer.clear();
 
     const float volume = *apvts.getRawParameterValue ("volume");
@@ -481,6 +542,7 @@ void BLETonesAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
         const double phaseInc1   = twoPi * v.frequency / sampleRate;
         const double phaseInc2   = twoPi * v.frequency * (double) v.detuneRatio / sampleRate;
         const double phaseIncSub = twoPi * v.frequency * 0.5 / sampleRate;
+        const double phaseIncTrem = twoPi * (double) v.tremRate / sampleRate;
 
         for (int n = 0; n < numSamples; ++n)
         {
@@ -492,6 +554,15 @@ void BLETonesAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
             // Apply one-pole low-pass filter for warmth
             v.filterState += v.filterCoef * (sig - v.filterState);
             sig = v.filterState;
+
+            // Apply tremolo for spooky wavering effect (Halloween mode)
+            if (v.tremDepth > 0.0f)
+            {
+                const float tremMod = 1.0f - v.tremDepth * (0.5f + 0.5f * static_cast<float> (std::sin (v.phaseTrem)));
+                sig *= tremMod;
+                v.phaseTrem += phaseIncTrem;
+                if (v.phaseTrem > twoPi) v.phaseTrem -= twoPi;
+            }
 
             // Apply envelope and amplitude
             sig *= v.envelope * v.amplitude;
@@ -558,6 +629,11 @@ int BLETonesAudioProcessor::getActiveVoiceCount() const
             ++count;
     }
     return count;
+}
+
+bool BLETonesAudioProcessor::isHalloweenMode() const
+{
+    return *apvts.getRawParameterValue ("halloweenMode") > 0.5f;
 }
 
 //==============================================================================

@@ -5,6 +5,10 @@ into music. Each BLE device becomes a voice: the closer it is, the louder and
 higher its tone. Works as a **VST3 / AU plugin inside any DAW** or as a
 **standalone desktop app**.
 
+> **🆕 First time testing?** See [TESTING_GUIDE.md](TESTING_GUIDE.md) for step-by-step
+> instructions on running bleTones and troubleshooting common issues. **No developer
+> registration is needed!**
+
 ---
 
 ## Architecture

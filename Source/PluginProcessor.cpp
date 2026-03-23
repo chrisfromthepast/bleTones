@@ -1,5 +1,76 @@
 #include "PluginProcessor.h"
 #include "PluginEditor.h"
+#include <cmath>
+
+//==============================================================================
+// Scale interval tables – matching the Electron app's scales object.
+// Each array contains semitone offsets from the root within a single octave.
+//==============================================================================
+static constexpr int kMinorPentatonic[] = { 0, 2, 3, 7, 9 };
+static constexpr int kMajorPentatonic[] = { 0, 2, 4, 7, 9 };
+static constexpr int kNaturalMinor[]    = { 0, 2, 3, 5, 7, 8, 10 };
+static constexpr int kMajorScale[]      = { 0, 2, 4, 5, 7, 9, 11 };
+static constexpr int kDorian[]          = { 0, 2, 3, 5, 7, 9, 10 };
+static constexpr int kPhrygian[]        = { 0, 1, 3, 5, 7, 8, 10 };
+static constexpr int kLydian[]          = { 0, 2, 4, 6, 7, 9, 11 };
+static constexpr int kMixolydian[]      = { 0, 2, 4, 5, 7, 9, 10 };
+static constexpr int kChromatic[]       = { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11 };
+
+struct ScaleInfo
+{
+    const int* intervals;
+    int        length;
+};
+
+static constexpr ScaleInfo kAllScales[] =
+{
+    { kMinorPentatonic, 5  },
+    { kMajorPentatonic, 5  },
+    { kNaturalMinor,    7  },
+    { kMajorScale,      7  },
+    { kDorian,          7  },
+    { kPhrygian,        7  },
+    { kLydian,          7  },
+    { kMixolydian,      7  },
+    { kChromatic,       12 },
+};
+
+const juce::StringArray& BLETonesAudioProcessor::getScaleNames()
+{
+    static const juce::StringArray names
+    {
+        "Minor Pentatonic",
+        "Major Pentatonic",
+        "Natural Minor",
+        "Major",
+        "Dorian",
+        "Phrygian",
+        "Lydian",
+        "Mixolydian",
+        "Chromatic"
+    };
+    return names;
+}
+
+const int* BLETonesAudioProcessor::getScaleIntervals (ScaleType type, int& outLength)
+{
+    const int idx = juce::jlimit (0, (int) NumScales - 1, (int) type);
+    outLength = kAllScales[idx].length;
+    return kAllScales[idx].intervals;
+}
+
+//==============================================================================
+// Sound-generation tuning constants
+//==============================================================================
+static constexpr int   kFallbackScaleLen  = 5;      // Fallback scale length (Minor Pentatonic) if lookup fails
+static constexpr int   kBaseDegreeOctaves = 3;      // Hash range spans this many scale-octaves
+static constexpr float kDeltaToAmpScale   = 6.0f;   // Movement delta → amplitude scaling
+static constexpr float kMinDecaySec       = 1.5f;    // Shortest note decay (far devices)
+static constexpr float kDecayRangeScale   = 3.0f;    // Additional decay for close devices (total max = 4.5 s)
+static constexpr int   kPanHashRange      = 140;     // Hash range for pan (mapped to −0.7…+0.7)
+static constexpr float kPanHashOffset     = 70.0f;   // Centre offset for pan hash
+static constexpr int   kDetuneHashRange   = 50;      // Hash range for per-voice random detune
+static constexpr float kDetuneStep        = 0.0001f; // Per-hash-unit detune (total range 0.001–0.006)
 
 //==============================================================================
 juce::AudioProcessorValueTreeState::ParameterLayout
@@ -24,6 +95,12 @@ juce::AudioProcessorValueTreeState::ParameterLayout
         "Root Note (MIDI)",
         0, 127, 60));
 
+    layout.add (std::make_unique<juce::AudioParameterChoice> (
+        "scaleType",
+        "Scale / Mode",
+        getScaleNames(),
+        0));  // Default: Minor Pentatonic
+
     return layout;
 }
 
@@ -39,14 +116,11 @@ BLETonesAudioProcessor::BLETonesAudioProcessor()
     oscReceiver.addListener (this);
 
 #if JucePlugin_Build_Standalone && JUCE_MAC
-    // Auto-launch the embedded BLE helper when running as a Standalone app.
-    // The helper is packaged at:  bleTones.app/Contents/Resources/bleTones_helper.app
-    // Launch with -g so it does not steal focus / appear in the foreground.
     {
         const juce::File helperApp =
             juce::File::getSpecialLocation (juce::File::currentExecutableFile)
-                .getParentDirectory()           // .../bleTones.app/Contents/MacOS
-                .getParentDirectory()           // .../bleTones.app/Contents
+                .getParentDirectory()
+                .getParentDirectory()
                 .getChildFile ("Resources")
                 .getChildFile ("bleTones_helper.app");
 
@@ -57,9 +131,6 @@ BLETonesAudioProcessor::BLETonesAudioProcessor()
             args.add ("-g");
             args.add (helperApp.getFullPathName());
 
-            // 'open' delegates to LaunchServices and exits immediately;
-            // the helper runs as its own independent process, so letting
-            // launcher go out of scope here is intentional and safe.
             juce::ChildProcess launcher;
             if (! launcher.start (args))
                 DBG ("bleTones: failed to launch helper at " << helperApp.getFullPathName());
@@ -85,8 +156,20 @@ const juce::String BLETonesAudioProcessor::getName() const { return "bleTones"; 
 void BLETonesAudioProcessor::prepareToPlay (double sr, int /*samplesPerBlock*/)
 {
     sampleRate = sr;
+
     for (auto& v : voices)
         v = {};
+
+    // Configure reverb for spacious ambient sound
+    juce::Reverb::Parameters rp;
+    rp.roomSize   = 0.75f;
+    rp.damping    = 0.4f;
+    rp.wetLevel   = 0.30f;
+    rp.dryLevel   = 0.70f;
+    rp.width      = 1.0f;
+    rp.freezeMode = 0.0f;
+    reverb.setParameters (rp);
+    reverb.reset();
 }
 
 void BLETonesAudioProcessor::releaseResources() {}
@@ -100,7 +183,48 @@ bool BLETonesAudioProcessor::isBusesLayoutSupported (const BusesLayout& layouts)
 }
 
 //==============================================================================
-// OSC message format:  /ble/rssi  <deviceName:string>  <rssi:int32>
+// Musical helpers
+//==============================================================================
+
+float BLETonesAudioProcessor::normalizeRSSI (int rssi)
+{
+    // -100 dBm → 0.0,  -30 dBm → 1.0
+    return juce::jlimit (0.0f, 1.0f, (static_cast<float> (rssi) + 100.0f) / 70.0f);
+}
+
+int BLETonesAudioProcessor::hashName (const juce::String& name)
+{
+    // Simple hash to get a consistent small integer from a device identifier
+    unsigned int h = 0;
+    for (int i = 0; i < name.length(); ++i)
+    {
+        h = ((h << 5) - h) + static_cast<unsigned int> (name[i]);
+    }
+    return static_cast<int> (h % 32);  // 0–31 range
+}
+
+double BLETonesAudioProcessor::degreeToFreq (int degree, int rootMidiNote) const
+{
+    // Look up the currently selected scale
+    const auto scaleIdx = static_cast<ScaleType> (
+        static_cast<int> (*apvts.getRawParameterValue ("scaleType")));
+    int scaleLen = 0;
+    const int* scale = getScaleIntervals (scaleIdx, scaleLen);
+
+    if (scaleLen <= 0) { scaleLen = kFallbackScaleLen; }  // Safety guard
+
+    const double rootHz = 440.0 * std::pow (2.0, (rootMidiNote - 69) / 12.0);
+    const int octave      = degree / scaleLen;
+    // Normalise modulo to [0, scaleLen) even for negative degrees
+    const int withinScale = ((degree % scaleLen) + scaleLen) % scaleLen;
+    const int semitones   = scale[withinScale] + octave * 12;
+    return rootHz * std::pow (2.0, semitones / 12.0);
+}
+
+//==============================================================================
+// OSC message → movement detection → chord triggering
+//==============================================================================
+
 void BLETonesAudioProcessor::oscMessageReceived (const juce::OSCMessage& msg)
 {
     if (msg.getAddressPattern().toString() != "/ble/rssi")
@@ -113,124 +237,327 @@ void BLETonesAudioProcessor::oscMessageReceived (const juce::OSCMessage& msg)
     const int          rssi = msg[1].getInt32();
     const juce::int64  now  = juce::Time::currentTimeMillis();
 
+    const float normRssi = normalizeRSSI (rssi);
+
     {
         juce::ScopedLock lock (deviceLock);
 
+        // ── Update or insert device ──────────────────────────────────────────
         bool found = false;
+        float delta = 0.0f;
+
         for (auto& d : devices)
         {
             if (d.name == name)
             {
-                d.rssi       = rssi;
+                delta       = std::abs (normRssi - normalizeRSSI (d.rssi));
+                d.prevRssi  = d.rssi;
+                d.rssi      = rssi;
                 d.lastSeenMs = now;
-                found        = true;
+                found       = true;
                 break;
             }
         }
 
         if (! found)
-            devices.push_back ({ name, rssi, now });
+        {
+            devices.push_back ({ name, rssi, rssi, now });
+            // First sighting – initialise device state
+            if (deviceStateMap.find (name) == deviceStateMap.end())
+            {
+                // Hash device name to a base scale degree spanning a few octaves.
+                // The range adapts to the current scale length.
+                const auto scaleIdx = static_cast<ScaleType> (
+                    static_cast<int> (*apvts.getRawParameterValue ("scaleType")));
+                int scaleLen = 0;
+                getScaleIntervals (scaleIdx, scaleLen);
+                if (scaleLen <= 0) { scaleLen = kFallbackScaleLen; }
+
+                DeviceState ds;
+                ds.baseDegree = hashName (name) % (scaleLen * kBaseDegreeOctaves);
+                deviceStateMap[name] = ds;
+            }
+            delta = 0.0f; // No delta for first sighting
+        }
 
         // Evict devices not seen for more than 10 seconds
         devices.erase (
             std::remove_if (devices.begin(), devices.end(),
                 [now] (const BLEDevice& d) { return (now - d.lastSeenMs) > 10'000; }),
             devices.end());
+
+        // ── Movement detection ───────────────────────────────────────────────
+        // The sensitivity parameter controls the movement threshold:
+        //   sensitivity 0.0 → threshold 0.30 (very insensitive)
+        //   sensitivity 1.0 → threshold 0.01 (very sensitive)
+        const float sensitivity = *apvts.getRawParameterValue ("sensitivity");
+        const float threshold   = 0.30f - sensitivity * 0.29f;
+
+        auto& ds = deviceStateMap[name];
+
+        if (delta > threshold && (now - ds.lastTriggeredMs) > kMinStrikeMs)
+        {
+            triggerNotesForDevice (name, normRssi, delta);
+            ds.lastTriggeredMs = now;
+        }
     }
 }
 
-std::vector<BLEDevice> BLETonesAudioProcessor::getDevicesCopy() const
+//==============================================================================
+// Generate chord notes based on proximity and movement
+//==============================================================================
+
+void BLETonesAudioProcessor::triggerNotesForDevice (const juce::String& id,
+                                                     float normRssi,
+                                                     float delta)
 {
-    juce::ScopedLock lock (deviceLock);
-    return devices;
+    // Called under deviceLock
+
+    const int rootNote = static_cast<int> (*apvts.getRawParameterValue ("rootNote"));
+    auto&     ds       = deviceStateMap[id];
+    const int baseDeg  = ds.baseDegree;
+
+    // ── Number of chord notes: proximity drives richness ─────────────────
+    //    Far (low RSSI):  1 note
+    //    Medium:          2 notes
+    //    Close:           3–4 notes spread across octaves
+    int numNotes;
+    if (normRssi < 0.3f)
+        numNotes = 1;
+    else if (normRssi < 0.55f)
+        numNotes = 2;
+    else if (normRssi < 0.75f)
+        numNotes = 3;
+    else
+        numNotes = 4;
+
+    // ── Amplitude: driven by movement delta, NOT proximity ───────────────
+    //    More movement = louder, capped at 0.8 to stay pleasant
+    const float amp = juce::jlimit (0.15f, 0.8f, delta * kDeltaToAmpScale);
+
+    // ── Decay time: close devices ring longer for more sonic presence ────
+    const float baseDecay = kMinDecaySec + normRssi * kDecayRangeScale;
+
+    // ── Octave spread: close devices spread wider ────────────────────────
+    //    Far:   all in same octave
+    //    Close: notes span −1 to +1 octave offsets
+    const int octaveSpread = (normRssi > 0.6f) ? 2 : (normRssi > 0.35f ? 1 : 0);
+
+    // ── Generate chord notes ─────────────────────────────────────────────
+    // Scale degree offsets for chord tones (root, 3rd, 5th, extended)
+    static constexpr int chordOffsets[] = { 0, 2, 4, 7 };
+    // Octave offset pattern for spread
+    static constexpr int octavePattern[] = { 0, 1, -1, 1 };
+
+    // Look up current scale length for octave jumps
+    const auto scaleIdx = static_cast<ScaleType> (
+        static_cast<int> (*apvts.getRawParameterValue ("scaleType")));
+    int scaleLen = 0;
+    getScaleIntervals (scaleIdx, scaleLen);
+    if (scaleLen <= 0) { scaleLen = kFallbackScaleLen; }
+
+    for (int i = 0; i < numNotes; ++i)
+    {
+        const int degree = baseDeg + chordOffsets[i];
+        int octOff = 0;
+        if (octaveSpread > 0 && i > 0)
+        {
+            octOff = octavePattern[i % 4];
+            if (octaveSpread < 2)
+                octOff = std::max (octOff, 0); // Only spread upward for medium
+        }
+
+        const double freq = degreeToFreq (degree + octOff * scaleLen, rootNote);
+
+        // Amplitude tapers for upper chord tones
+        const float noteAmp = amp * (1.0f - (float) i * 0.15f);
+
+        // Panning via hash for consistent spatial placement (range ≈ −0.7…+0.7)
+        const float pan = ((float) (hashName (id + juce::String (i)) % kPanHashRange)
+                          - kPanHashOffset) / 100.0f;
+
+        // Slightly different decay per note for organic feel
+        const float decay = baseDecay + (float) i * 0.3f;
+
+        pendingNotes.push_back ({ freq, noteAmp, pan, decay });
+    }
 }
 
 //==============================================================================
-double BLETonesAudioProcessor::rssiToFrequency (int rssi)
-{
-    const int midiNote = juce::jlimit (kMinMIDINote, kMaxMIDINote,
-        juce::jmap (rssi, kMinRSSI, kMaxRSSI, kMinMIDINote, kMaxMIDINote));
-    return 440.0 * std::pow (2.0, (midiNote - 69) / 12.0);
-}
+// Voice allocation
+//==============================================================================
 
-float BLETonesAudioProcessor::rssiToVelocity (int rssi)
+void BLETonesAudioProcessor::activateVoice (const PendingNote& note)
 {
-    return juce::jlimit (0.0f, 1.0f,
-        juce::jmap (static_cast<float> (rssi),
-                    static_cast<float> (kMinRSSI), static_cast<float> (kMaxRSSI),
-                    0.1f, 1.0f));
+    // Find a free voice, or steal the quietest one
+    int bestIdx     = 0;
+    float quietest  = 2.0f;
+
+    for (int i = 0; i < kMaxVoices; ++i)
+    {
+        if (! voices[i].active)
+        {
+            bestIdx = i;
+            break;
+        }
+
+        const float level = voices[i].envelope * voices[i].amplitude;
+        if (level < quietest)
+        {
+            quietest = level;
+            bestIdx  = i;
+        }
+    }
+
+    auto& v        = voices[bestIdx];
+    v.active       = true;
+    v.phase1       = 0.0;
+    v.phase2       = 0.0;
+    v.phaseSub     = 0.0;
+    v.frequency    = note.frequency;
+    v.amplitude    = note.amplitude;
+    v.envelope     = 1.0f;  // Start at full envelope
+    v.pan          = note.pan;
+
+    // Per-sample envelope decay: reach ~0.001 in decaySec seconds
+    //   envelope *= envDecay  each sample
+    //   envDecay^(sr * decaySec) ≈ 0.001
+    //   envDecay = 0.001^(1 / (sr * decaySec))
+    const double totalSamples = sampleRate * (double) note.decaySec;
+    v.envDecay = (totalSamples > 0.0)
+        ? static_cast<float> (std::pow (0.001, 1.0 / totalSamples))
+        : 0.0f;
+
+    // Slight random detune for warmth (range ≈ 1.001–1.006)
+    v.detuneRatio = 1.001f
+        + (float) (hashName (juce::String (note.frequency)) % kDetuneHashRange) * kDetuneStep;
+
+    // Sub oscillator louder for lower frequencies (warmer bass, thinner treble)
+    v.subMix = juce::jlimit (0.0f, 0.4f,
+        1.0f - static_cast<float> (note.frequency / 600.0));
+
+    // Low-pass filter coefficient – lower for low notes, higher for high notes
+    v.filterCoef = juce::jlimit (0.15f, 0.6f,
+        static_cast<float> (note.frequency / 1200.0));
+    v.filterState = 0.0f;
 }
 
 //==============================================================================
+// processBlock – render polyphonic voices with envelopes + reverb
+//==============================================================================
+
 void BLETonesAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
                                             juce::MidiBuffer&         midiMessages)
 {
     juce::ScopedNoDenormals noDenormals;
     buffer.clear();
 
-    const float volume      = *apvts.getRawParameterValue ("volume");
-    const float sensitivity = *apvts.getRawParameterValue ("sensitivity");
+    const float volume = *apvts.getRawParameterValue ("volume");
 
-    // Amplitude ramps – attack faster than decay
-    static constexpr float kAttackRate = 0.001f;
-    static constexpr float kDecayRate  = 0.0005f;
-
-    // Refresh voice targets from the current device list
+    // ── Pick up pending notes from the OSC thread ────────────────────────
     {
         juce::ScopedLock lock (deviceLock);
 
-        int voiceIdx = 0;
-        for (int i = 0; i < static_cast<int> (devices.size()) && voiceIdx < kMaxVoices; ++i)
+        for (const auto& note : pendingNotes)
         {
-            const auto& d            = devices[static_cast<size_t> (i)];
-            voices[voiceIdx].targetAmp  = rssiToVelocity (d.rssi) * sensitivity * volume;
-            voices[voiceIdx].frequency  = rssiToFrequency (d.rssi);
-            voices[voiceIdx].active     = true;
-            ++voiceIdx;
+            activateVoice (note);
         }
 
-        for (int i = voiceIdx; i < kMaxVoices; ++i)
-        {
-            voices[i].targetAmp = 0.0f;
-            if (voices[i].amplitude < 1.0e-4f)
-                voices[i].active = false;
-        }
+        pendingNotes.clear();
     }
 
-    // Render each active voice as a sine wave
+    // ── Render each active voice ─────────────────────────────────────────
     auto* leftCh  = buffer.getWritePointer (0);
     auto* rightCh = buffer.getNumChannels() > 1 ? buffer.getWritePointer (1) : nullptr;
     const int numSamples = buffer.getNumSamples();
 
+    const double twoPi = juce::MathConstants<double>::twoPi;
+
     for (auto& v : voices)
     {
-        if (! v.active && v.amplitude < 1.0e-4f)
+        if (! v.active)
             continue;
 
-        const double phaseInc = juce::MathConstants<double>::twoPi * v.frequency / sampleRate;
+        const double phaseInc1   = twoPi * v.frequency / sampleRate;
+        const double phaseInc2   = twoPi * v.frequency * (double) v.detuneRatio / sampleRate;
+        const double phaseIncSub = twoPi * v.frequency * 0.5 / sampleRate;
 
         for (int n = 0; n < numSamples; ++n)
         {
-            // Smooth amplitude towards target
-            if (v.amplitude < v.targetAmp)
-                v.amplitude = std::min (v.amplitude + kAttackRate, v.targetAmp);
-            else
-                v.amplitude = std::max (v.amplitude - kDecayRate,  v.targetAmp);
+            // Three-oscillator mix: main sine + detuned sine + sub sine
+            float sig = static_cast<float> (std::sin (v.phase1)) * 0.45f
+                      + static_cast<float> (std::sin (v.phase2)) * 0.30f
+                      + static_cast<float> (std::sin (v.phaseSub)) * v.subMix;
 
-            const float sample = v.amplitude * static_cast<float> (std::sin (v.phase));
-            leftCh[n] += sample;
-            if (rightCh) rightCh[n] += sample;
+            // Apply one-pole low-pass filter for warmth
+            v.filterState += v.filterCoef * (sig - v.filterState);
+            sig = v.filterState;
 
-            v.phase += phaseInc;
-            if (v.phase > juce::MathConstants<double>::twoPi)
-                v.phase -= juce::MathConstants<double>::twoPi;
+            // Apply envelope and amplitude
+            sig *= v.envelope * v.amplitude;
+
+            // Decay envelope
+            v.envelope *= v.envDecay;
+
+            // Equal-power panning
+            const float leftGain  = std::sqrt ((1.0f - v.pan) * 0.5f);
+            const float rightGain = std::sqrt ((1.0f + v.pan) * 0.5f);
+
+            leftCh[n] += sig * leftGain;
+            if (rightCh != nullptr)
+                rightCh[n] += sig * rightGain;
+
+            // Advance oscillator phases
+            v.phase1   += phaseInc1;
+            v.phase2   += phaseInc2;
+            v.phaseSub += phaseIncSub;
+
+            if (v.phase1   > twoPi) v.phase1   -= twoPi;
+            if (v.phase2   > twoPi) v.phase2   -= twoPi;
+            if (v.phaseSub > twoPi) v.phaseSub -= twoPi;
+        }
+
+        // Deactivate voices that have decayed to silence
+        if (v.envelope < 0.001f)
+        {
+            v.active = false;
         }
     }
 
-    // Attenuate to keep the mix below 0 dBFS for up to kMaxVoices simultaneous voices
-    buffer.applyGain (1.0f / static_cast<float> (kMaxVoices));
+    // ── Apply master volume ──────────────────────────────────────────────
+    buffer.applyGain (volume);
+
+    // ── Apply reverb ─────────────────────────────────────────────────────
+    if (buffer.getNumChannels() >= 2)
+    {
+        reverb.processStereo (buffer.getWritePointer (0),
+                              buffer.getWritePointer (1),
+                              numSamples);
+    }
+    else
+    {
+        reverb.processMono (buffer.getWritePointer (0), numSamples);
+    }
 
     juce::ignoreUnused (midiMessages);
+}
+
+//==============================================================================
+std::vector<BLEDevice> BLETonesAudioProcessor::getDevicesCopy() const
+{
+    juce::ScopedLock lock (deviceLock);
+    return devices;
+}
+
+int BLETonesAudioProcessor::getActiveVoiceCount() const
+{
+    int count = 0;
+    for (const auto& v : voices)
+    {
+        if (v.active)
+            ++count;
+    }
+    return count;
 }
 
 //==============================================================================

@@ -7,6 +7,7 @@ struct BLEDevice
 {
     juce::String name;
     int          rssi       { -100 };
+    int          prevRssi   { -100 };   // For RSSI delta (movement) tracking
     juce::int64  lastSeenMs { 0 };
 };
 
@@ -17,12 +18,13 @@ struct BLEDevice
  * Listens for OSC messages from the BLE helper on UDP port 9000.
  * Each message has the pattern:  /ble/rssi  <name:string>  <rssi:int32>
  *
- * Received RSSI values are mapped to sine-wave voices:
- *   - RSSI -100 … -30 dBm  →  frequency 110 … 880 Hz
- *   - Amplitude tracks RSSI strength (closer device = louder)
+ * Sound generation is driven by **movement** (RSSI changes), not absolute
+ * signal strength.  Each device is hashed to a consistent scale degree so
+ * it always plays the same pitch.  Closer devices generate richer chords
+ * (more notes, wider octave spread) rather than being louder or higher.
  *
- * Up to 8 simultaneous voices (one per BLE device) are rendered.
- * The plugin also emits MIDI NoteOn/Off for use as a DAW modulation source.
+ * Up to 32 simultaneous polyphonic voices with attack/decay envelopes,
+ * multi-oscillator synthesis, and reverb for a spacious, musical result.
  */
 class BLETonesAudioProcessor : public juce::AudioProcessor,
                                 public juce::OSCReceiver::Listener<
@@ -73,11 +75,8 @@ public:
     /** Returns the number of currently active voices (for display). */
     int getActiveVoiceCount() const;
 
-    // RSSI and note range constants used for frequency / velocity mapping
-    static constexpr int kMinRSSI     = -100; // dBm – barely detectable
-    static constexpr int kMaxRSSI     =  -30; // dBm – very close device
-    static constexpr int kMinMIDINote =   36; // C2
-    static constexpr int kMaxMIDINote =   96; // C7
+    static constexpr int kMinRSSI = -100; // dBm – barely detectable
+    static constexpr int kMaxRSSI =  -30; // dBm – very close device
 
     juce::AudioProcessorValueTreeState apvts;
 
@@ -92,27 +91,79 @@ private:
     std::vector<BLEDevice>        devices;
 
     //==========================================================================
-    /** One sine-wave voice per active BLE device (up to kMaxVoices). */
-    struct Voice
+    // ── Musical scale & pitch ────────────────────────────────────────────────
+
+    /** Convert a scale degree (can span multiple octaves) to Hz. */
+    double degreeToFreq (int degree, int rootMidiNote) const;
+
+    /** Normalise raw RSSI (-100…-30 dBm) to 0.0…1.0. */
+    static float normalizeRSSI (int rssi);
+
+    /** Deterministic hash of device name → small int for pitch assignment. */
+    static int hashName (const juce::String& name);
+
+    //==========================================================================
+    // ── Per-device persistent state (protected by deviceLock) ────────────────
+
+    struct DeviceState
     {
-        double phase       { 0.0 };
-        float  amplitude   { 0.0f };
-        float  targetAmp   { 0.0f };
-        double frequency   { 440.0 };
-        bool   active      { false };
-        int    midiNote    { -1 };
+        int         baseDegree      { 0 };  // Hashed scale degree
+        juce::int64 lastTriggeredMs { 0 };  // Rate-limit triggers
     };
 
-    static constexpr int kMaxVoices = 8;
+    std::map<juce::String, DeviceState> deviceStateMap;
+
+    //==========================================================================
+    // ── Note event queue (OSC thread → audio thread, under deviceLock) ───────
+
+    struct PendingNote
+    {
+        double frequency;
+        float  amplitude;
+        float  pan;
+        float  decaySec;
+    };
+
+    std::vector<PendingNote> pendingNotes;
+
+    /** Minimum ms between triggers for a single device. */
+    static constexpr int kMinStrikeMs = 150;
+
+    /** Generate chord notes for a device based on proximity and movement. */
+    void triggerNotesForDevice (const juce::String& id,
+                                float normRssi, float delta);
+
+    //==========================================================================
+    // ── Polyphonic voice pool ────────────────────────────────────────────────
+
+    struct Voice
+    {
+        bool   active      { false };
+        double phase1      { 0.0 };     // Main sine oscillator
+        double phase2      { 0.0 };     // Detuned sine oscillator
+        double phaseSub    { 0.0 };     // Sub oscillator (octave below)
+        double frequency   { 440.0 };
+        float  amplitude   { 0.0f };    // Peak amplitude
+        float  envelope    { 0.0f };    // Current envelope level (0–1)
+        float  envDecay    { 0.9999f }; // Per-sample envelope decay
+        float  pan         { 0.0f };    // Stereo position (−1…+1)
+        float  detuneRatio { 1.003f };  // Ratio for the detuned oscillator
+        float  subMix      { 0.0f };    // Sub oscillator level (0–1)
+        float  filterState { 0.0f };    // One-pole LP filter state
+        float  filterCoef  { 0.3f };    // LP filter coefficient
+    };
+
+    static constexpr int kMaxVoices = 32;
     std::array<Voice, kMaxVoices> voices;
     double sampleRate { 44100.0 };
 
-    //==========================================================================
-    /** Map RSSI -100…-30 dBm → MIDI note 36…96, then to Hz. */
-    static double rssiToFrequency (int rssi);
+    /** Find a free (or quietest) voice slot and initialise it. */
+    void activateVoice (const PendingNote& note);
 
-    /** Map RSSI -100…-30 dBm → normalised amplitude 0.1…1.0. */
-    static float  rssiToVelocity (int rssi);
+    //==========================================================================
+    // ── Reverb ───────────────────────────────────────────────────────────────
+
+    juce::Reverb reverb;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (BLETonesAudioProcessor)
 };

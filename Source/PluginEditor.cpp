@@ -46,6 +46,16 @@ public:
         setColour (juce::Slider::textBoxBackgroundColourId, juce::Colours::transparentBlack);
         setColour (juce::Slider::textBoxOutlineColourId,    juce::Colours::transparentBlack);
         setColour (juce::Label::textColourId,               kColMuted);
+
+        // ComboBox styling
+        setColour (juce::ComboBox::backgroundColourId,      kColBg1);
+        setColour (juce::ComboBox::textColourId,            kColTextLight);
+        setColour (juce::ComboBox::outlineColourId,         kColPanelB);
+        setColour (juce::ComboBox::arrowColourId,           kColGold);
+        setColour (juce::PopupMenu::backgroundColourId,     kColBg2);
+        setColour (juce::PopupMenu::textColourId,           kColTextLight);
+        setColour (juce::PopupMenu::highlightedBackgroundColourId, kColBg3);
+        setColour (juce::PopupMenu::highlightedTextColourId, kColGold);
     }
 
     void drawLinearSlider (juce::Graphics& g,
@@ -136,6 +146,50 @@ BLETonesAudioProcessorEditor::BLETonesAudioProcessorEditor (BLETonesAudioProcess
     sensitivitySlider.setSliderStyle (juce::Slider::LinearHorizontal);
     sensitivitySlider.setTextBoxStyle (juce::Slider::TextBoxRight, false, 50, 20);
     addAndMakeVisible (sensitivitySlider);
+
+    // Scale / mode combo box – items must be added BEFORE the attachment
+    scaleLabel.setText ("Scale", juce::dontSendNotification);
+    addAndMakeVisible (scaleLabel);
+    {
+        const auto& names = BLETonesAudioProcessor::getScaleNames();
+        for (int i = 0; i < names.size(); ++i)
+            scaleCombo.addItem (names[i], i + 1);  // ComboBox IDs are 1-based
+    }
+    addAndMakeVisible (scaleCombo);
+    scaleAttachment = std::make_unique<juce::AudioProcessorValueTreeState::ComboBoxAttachment> (
+        p.apvts, "scaleType", scaleCombo);
+
+    // Key / root note combo box
+    keyLabel.setText ("Key", juce::dontSendNotification);
+    addAndMakeVisible (keyLabel);
+    {
+        static const char* noteNames[] = { "C", "C#", "D", "D#", "E", "F",
+                                            "F#", "G", "G#", "A", "A#", "B" };
+        // Populate with musical notes from C1 (MIDI 24) to C5 (MIDI 72)
+        // matching the Electron app's root note slider range
+        int itemId = 1;
+        for (int midi = 24; midi <= 72; ++midi)
+        {
+            const int octave = (midi / 12) - 1;
+            const juce::String label = juce::String (noteNames[midi % 12])
+                                     + juce::String (octave);
+            keyCombo.addItem (label, itemId++);
+        }
+
+        // Set the initial selection from the parameter (default MIDI 60 = C4)
+        const int currentMidi = static_cast<int> (*p.apvts.getRawParameterValue ("rootNote"));
+        const int comboIdx = juce::jlimit (0, 48, currentMidi - 24);
+        keyCombo.setSelectedId (comboIdx + 1, juce::dontSendNotification);
+
+        keyCombo.onChange = [this, &p]()
+        {
+            const int selectedIdx = keyCombo.getSelectedId() - 1;   // 0-based
+            const int midiNote    = selectedIdx + 24;               // MIDI 24–72
+            p.apvts.getParameter ("rootNote")->setValueNotifyingHost (
+                p.apvts.getParameter ("rootNote")->convertTo0to1 ((float) midiNote));
+        };
+    }
+    addAndMakeVisible (keyCombo);
 
     generateNetNodes (900, 640);
     startTimerHz (15);
@@ -421,7 +475,7 @@ void BLETonesAudioProcessorEditor::paintSoundStatsPanel (juce::Graphics& g, int 
     const float px = (float) (W - kPanelMargin - kRightPanelW);
     const float py = (float) kPanelMargin;
     const float pw = (float) kRightPanelW;
-    const float ph = 160.0f;
+    const float ph = 210.0f;
     const juce::Rectangle<float> panel (px, py, pw, ph);
 
     // Panel background
@@ -464,6 +518,22 @@ void BLETonesAudioProcessorEditor::paintSoundStatsPanel (juce::Graphics& g, int 
     drawStatRow ("Active Voices:", juce::String (cachedActiveVoices));
     drawStatRow ("Devices:",       juce::String ((int) cachedDevices.size()));
     drawStatRow ("OSC Port:",      "9000");
+
+    // Current key display
+    {
+        static const char* noteNames[] = { "C", "C#", "D", "D#", "E", "F",
+                                            "F#", "G", "G#", "A", "A#", "B" };
+        const int midi   = static_cast<int> (*audioProcessor.apvts.getRawParameterValue ("rootNote"));
+        const int octave = (midi / 12) - 1;
+        drawStatRow ("Key:", juce::String (noteNames[midi % 12]) + juce::String (octave));
+    }
+
+    // Current scale display
+    {
+        const int scaleIdx = static_cast<int> (*audioProcessor.apvts.getRawParameterValue ("scaleType"));
+        const auto& names  = BLETonesAudioProcessor::getScaleNames();
+        drawStatRow ("Scale:", names[juce::jlimit (0, names.size() - 1, scaleIdx)]);
+    }
 }
 
 //==============================================================================
@@ -497,25 +567,45 @@ void BLETonesAudioProcessorEditor::resized()
     const int W = getWidth();
     const int H = getHeight();
 
-    // Sliders live in the center column, below the title area
+    // Sliders and combos live in the center column, below the title area
     const int centerX = kPanelMargin + kLeftPanelW + kPanelMargin;
     const int centerW = W - centerX - kRightPanelW - kPanelMargin * 2;
 
-    // Position sliders in the lower-center area
-    const int sliderAreaY = (int) ((float) H * 0.72f);
-    const int sliderW = std::min (centerW - 20, 320);
-    const int sliderX = centerX + (centerW - sliderW) / 2;
+    // Position controls in the lower-center area
+    const int sliderAreaY = (int) ((float) H * 0.65f);
+    const int ctrlW = std::min (centerW - 20, 320);
+    const int ctrlX = centerX + (centerW - ctrlW) / 2;
+    constexpr int kLabelW = 90;
+    constexpr int kRowH   = 28;
+    constexpr int kGap    = 8;
 
-    auto makeRow = [&] (int y, int h) {
-        return juce::Rectangle<int> (sliderX, y, sliderW, h);
+    auto makeRow = [&] (int y) {
+        return juce::Rectangle<int> (ctrlX, y, ctrlW, kRowH);
     };
 
-    auto volRow = makeRow (sliderAreaY, 28);
-    volumeLabel.setBounds (volRow.removeFromLeft (90));
-    volumeSlider.setBounds (volRow);
+    int y = sliderAreaY;
 
-    auto senRow = makeRow (sliderAreaY + 36, 28);
-    sensitivityLabel.setBounds (senRow.removeFromLeft (90));
+    // Key combo row
+    auto keyRow = makeRow (y);
+    keyLabel.setBounds (keyRow.removeFromLeft (kLabelW));
+    keyCombo.setBounds (keyRow);
+    y += kRowH + kGap;
+
+    // Scale combo row
+    auto scaleRow = makeRow (y);
+    scaleLabel.setBounds (scaleRow.removeFromLeft (kLabelW));
+    scaleCombo.setBounds (scaleRow);
+    y += kRowH + kGap;
+
+    // Volume slider row
+    auto volRow = makeRow (y);
+    volumeLabel.setBounds (volRow.removeFromLeft (kLabelW));
+    volumeSlider.setBounds (volRow);
+    y += kRowH + kGap;
+
+    // Sensitivity slider row
+    auto senRow = makeRow (y);
+    sensitivityLabel.setBounds (senRow.removeFromLeft (kLabelW));
     sensitivitySlider.setBounds (senRow);
 
     // Regenerate network nodes if window was resized

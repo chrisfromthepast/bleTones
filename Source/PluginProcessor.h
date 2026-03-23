@@ -78,6 +78,30 @@ public:
     static constexpr int kMinRSSI = -100; // dBm – barely detectable
     static constexpr int kMaxRSSI =  -30; // dBm – very close device
 
+    //==========================================================================
+    // ── Scale definitions (matching the original Electron app) ───────────────
+
+    /** All available musical scales / modes. */
+    enum ScaleType
+    {
+        MinorPentatonic = 0,
+        MajorPentatonic,
+        NaturalMinor,
+        Major,
+        Dorian,
+        Phrygian,
+        Lydian,
+        Mixolydian,
+        Chromatic,
+        NumScales
+    };
+
+    /** Human-readable names for each scale (in the same order as the enum). */
+    static const juce::StringArray& getScaleNames();
+
+    /** Returns the interval array and its length for a given ScaleType. */
+    static const int* getScaleIntervals (ScaleType type, int& outLength);
+
     juce::AudioProcessorValueTreeState apvts;
 
 private:

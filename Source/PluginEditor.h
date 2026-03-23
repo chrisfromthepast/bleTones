@@ -29,14 +29,19 @@ private:
     std::unique_ptr<juce::LookAndFeel> customLookAndFeel;
 
     // Controls
-    juce::Slider volumeSlider;
-    juce::Slider sensitivitySlider;
-    juce::Label  volumeLabel;
-    juce::Label  sensitivityLabel;
+    juce::Slider    volumeSlider;
+    juce::Slider    sensitivitySlider;
+    juce::Label     volumeLabel;
+    juce::Label     sensitivityLabel;
+    juce::ComboBox  scaleCombo;
+    juce::Label     scaleLabel;
+    juce::ComboBox  keyCombo;
+    juce::Label     keyLabel;
 
     // Parameter attachments
-    juce::AudioProcessorValueTreeState::SliderAttachment volumeAttachment;
-    juce::AudioProcessorValueTreeState::SliderAttachment sensitivityAttachment;
+    juce::AudioProcessorValueTreeState::SliderAttachment   volumeAttachment;
+    juce::AudioProcessorValueTreeState::SliderAttachment   sensitivityAttachment;
+    std::unique_ptr<juce::AudioProcessorValueTreeState::ComboBoxAttachment> scaleAttachment;
 
     // Cached device snapshot (refreshed at 15 Hz)
     std::vector<BLEDevice> cachedDevices;

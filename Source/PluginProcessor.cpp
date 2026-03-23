@@ -3,12 +3,61 @@
 #include <cmath>
 
 //==============================================================================
-// Minor pentatonic scale intervals (semitones from root) – matches original
-// Electron implementation.  Used by degreeToFreq() to convert scale degrees
-// that span multiple octaves into a frequency.
+// Scale interval tables – matching the Electron app's scales object.
+// Each array contains semitone offsets from the root within a single octave.
 //==============================================================================
-static constexpr int kScale[]    = { 0, 2, 3, 7, 9 };
-static constexpr int kScaleSize  = 5;
+static constexpr int kMinorPentatonic[] = { 0, 2, 3, 7, 9 };
+static constexpr int kMajorPentatonic[] = { 0, 2, 4, 7, 9 };
+static constexpr int kNaturalMinor[]    = { 0, 2, 3, 5, 7, 8, 10 };
+static constexpr int kMajorScale[]      = { 0, 2, 4, 5, 7, 9, 11 };
+static constexpr int kDorian[]          = { 0, 2, 3, 5, 7, 9, 10 };
+static constexpr int kPhrygian[]        = { 0, 1, 3, 5, 7, 8, 10 };
+static constexpr int kLydian[]          = { 0, 2, 4, 6, 7, 9, 11 };
+static constexpr int kMixolydian[]      = { 0, 2, 4, 5, 7, 9, 10 };
+static constexpr int kChromatic[]       = { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11 };
+
+struct ScaleInfo
+{
+    const int* intervals;
+    int        length;
+};
+
+static constexpr ScaleInfo kAllScales[] =
+{
+    { kMinorPentatonic, 5  },
+    { kMajorPentatonic, 5  },
+    { kNaturalMinor,    7  },
+    { kMajorScale,      7  },
+    { kDorian,          7  },
+    { kPhrygian,        7  },
+    { kLydian,          7  },
+    { kMixolydian,      7  },
+    { kChromatic,       12 },
+};
+
+const juce::StringArray& BLETonesAudioProcessor::getScaleNames()
+{
+    static const juce::StringArray names
+    {
+        "Minor Pentatonic",
+        "Major Pentatonic",
+        "Natural Minor",
+        "Major",
+        "Dorian",
+        "Phrygian",
+        "Lydian",
+        "Mixolydian",
+        "Chromatic"
+    };
+    return names;
+}
+
+const int* BLETonesAudioProcessor::getScaleIntervals (ScaleType type, int& outLength)
+{
+    const int idx = juce::jlimit (0, (int) NumScales - 1, (int) type);
+    outLength = kAllScales[idx].length;
+    return kAllScales[idx].intervals;
+}
 
 //==============================================================================
 // Sound-generation tuning constants
@@ -44,6 +93,12 @@ juce::AudioProcessorValueTreeState::ParameterLayout
         "rootNote",
         "Root Note (MIDI)",
         0, 127, 60));
+
+    layout.add (std::make_unique<juce::AudioParameterChoice> (
+        "scaleType",
+        "Scale / Mode",
+        getScaleNames(),
+        0));  // Default: Minor Pentatonic
 
     return layout;
 }
@@ -149,12 +204,19 @@ int BLETonesAudioProcessor::hashName (const juce::String& name)
 
 double BLETonesAudioProcessor::degreeToFreq (int degree, int rootMidiNote) const
 {
-    // Scale degree 0 = root.  Positive degrees walk up the scale across octaves.
+    // Look up the currently selected scale
+    const auto scaleIdx = static_cast<ScaleType> (
+        static_cast<int> (*apvts.getRawParameterValue ("scaleType")));
+    int scaleLen = 0;
+    const int* scale = getScaleIntervals (scaleIdx, scaleLen);
+
+    if (scaleLen <= 0) { scaleLen = 1; }  // Safety guard
+
     const double rootHz = 440.0 * std::pow (2.0, (rootMidiNote - 69) / 12.0);
-    const int octave      = degree / kScaleSize;
-    // Normalise modulo to [0, kScaleSize) even for negative degrees
-    const int withinScale = ((degree % kScaleSize) + kScaleSize) % kScaleSize;
-    const int semitones   = kScale[withinScale] + octave * 12;
+    const int octave      = degree / scaleLen;
+    // Normalise modulo to [0, scaleLen) even for negative degrees
+    const int withinScale = ((degree % scaleLen) + scaleLen) % scaleLen;
+    const int semitones   = scale[withinScale] + octave * 12;
     return rootHz * std::pow (2.0, semitones / 12.0);
 }
 
@@ -202,8 +264,16 @@ void BLETonesAudioProcessor::oscMessageReceived (const juce::OSCMessage& msg)
             // First sighting – initialise device state
             if (deviceStateMap.find (name) == deviceStateMap.end())
             {
+                // Hash device name to a base scale degree spanning a few octaves.
+                // The range adapts to the current scale length.
+                const auto scaleIdx = static_cast<ScaleType> (
+                    static_cast<int> (*apvts.getRawParameterValue ("scaleType")));
+                int scaleLen = 0;
+                getScaleIntervals (scaleIdx, scaleLen);
+                if (scaleLen <= 0) { scaleLen = 5; }
+
                 DeviceState ds;
-                ds.baseDegree = hashName (name) % (kScaleSize * kBaseDegreeOctaves);
+                ds.baseDegree = hashName (name) % (scaleLen * kBaseDegreeOctaves);
                 deviceStateMap[name] = ds;
             }
             delta = 0.0f; // No delta for first sighting
@@ -278,6 +348,13 @@ void BLETonesAudioProcessor::triggerNotesForDevice (const juce::String& id,
     // Octave offset pattern for spread
     static constexpr int octavePattern[] = { 0, 1, -1, 1 };
 
+    // Look up current scale length for octave jumps
+    const auto scaleIdx = static_cast<ScaleType> (
+        static_cast<int> (*apvts.getRawParameterValue ("scaleType")));
+    int scaleLen = 0;
+    getScaleIntervals (scaleIdx, scaleLen);
+    if (scaleLen <= 0) { scaleLen = 5; }
+
     for (int i = 0; i < numNotes; ++i)
     {
         const int degree = baseDeg + chordOffsets[i];
@@ -289,7 +366,7 @@ void BLETonesAudioProcessor::triggerNotesForDevice (const juce::String& id,
                 octOff = std::max (octOff, 0); // Only spread upward for medium
         }
 
-        const double freq = degreeToFreq (degree + octOff * kScaleSize, rootNote);
+        const double freq = degreeToFreq (degree + octOff * scaleLen, rootNote);
 
         // Amplitude tapers for upper chord tones
         const float noteAmp = amp * (1.0f - (float) i * 0.15f);

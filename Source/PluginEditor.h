@@ -27,6 +27,7 @@ private:
 
     // Custom look-and-feel (concrete type defined in .cpp)
     std::unique_ptr<juce::LookAndFeel> customLookAndFeel;
+    std::unique_ptr<juce::LookAndFeel> halloweenLookAndFeel;
 
     // Controls
     juce::Slider    volumeSlider;
@@ -37,15 +38,18 @@ private:
     juce::Label     scaleLabel;
     juce::ComboBox  keyCombo;
     juce::Label     keyLabel;
+    juce::ToggleButton halloweenToggle;
 
     // Parameter attachments
     juce::AudioProcessorValueTreeState::SliderAttachment   volumeAttachment;
     juce::AudioProcessorValueTreeState::SliderAttachment   sensitivityAttachment;
     std::unique_ptr<juce::AudioProcessorValueTreeState::ComboBoxAttachment> scaleAttachment;
+    std::unique_ptr<juce::AudioProcessorValueTreeState::ButtonAttachment>   halloweenAttachment;
 
     // Cached device snapshot (refreshed at 15 Hz)
     std::vector<BLEDevice> cachedDevices;
     int cachedActiveVoices { 0 };
+    bool cachedHalloweenMode { false };
 
     // Animation phase (radians, advanced each timer tick)
     float animPhase { 0.0f };
@@ -54,6 +58,9 @@ private:
     struct NetNode { float x, y; };
     std::vector<NetNode> netNodes;
     void generateNetNodes (int W, int H);
+
+    // Helper to update look-and-feel when Halloween mode changes
+    void updateLookAndFeelForMode (bool halloween);
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (BLETonesAudioProcessorEditor)
 };

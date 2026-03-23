@@ -93,6 +93,7 @@ public:
         Lydian,
         Mixolydian,
         Chromatic,
+        HalloweenSpooky,  // Classic spooky diminished/tritone scale
         NumScales
     };
 
@@ -104,8 +105,17 @@ public:
 
     juce::AudioProcessorValueTreeState apvts;
 
+    /** Returns true if Halloween mode is currently enabled. */
+    bool isHalloweenMode() const;
+
 private:
     static juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout();
+
+    /** Updates reverb parameters based on Halloween mode setting. */
+    void updateReverbForHalloweenMode (bool halloween);
+
+    /** Tracks the last Halloween mode state to detect changes. */
+    bool lastHalloweenMode { false };
 
     //==========================================================================
     juce::OSCReceiver oscReceiver;
@@ -166,6 +176,7 @@ private:
         double phase1      { 0.0 };     // Main sine oscillator
         double phase2      { 0.0 };     // Detuned sine oscillator
         double phaseSub    { 0.0 };     // Sub oscillator (octave below)
+        double phaseTrem   { 0.0 };     // Tremolo LFO phase (Halloween mode)
         double frequency   { 440.0 };
         float  amplitude   { 0.0f };    // Peak amplitude
         float  envelope    { 0.0f };    // Current envelope level (0–1)
@@ -175,6 +186,8 @@ private:
         float  subMix      { 0.0f };    // Sub oscillator level (0–1)
         float  filterState { 0.0f };    // One-pole LP filter state
         float  filterCoef  { 0.3f };    // LP filter coefficient
+        float  tremRate    { 5.0f };    // Tremolo rate Hz (Halloween mode)
+        float  tremDepth   { 0.0f };    // Tremolo depth 0-1 (Halloween mode)
     };
 
     static constexpr int kMaxVoices = 32;

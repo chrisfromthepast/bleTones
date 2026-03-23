@@ -62,6 +62,7 @@ const int* BLETonesAudioProcessor::getScaleIntervals (ScaleType type, int& outLe
 //==============================================================================
 // Sound-generation tuning constants
 //==============================================================================
+static constexpr int   kFallbackScaleLen  = 5;      // Fallback scale length (Minor Pentatonic) if lookup fails
 static constexpr int   kBaseDegreeOctaves = 3;      // Hash range spans this many scale-octaves
 static constexpr float kDeltaToAmpScale   = 6.0f;   // Movement delta → amplitude scaling
 static constexpr float kMinDecaySec       = 1.5f;    // Shortest note decay (far devices)
@@ -210,7 +211,7 @@ double BLETonesAudioProcessor::degreeToFreq (int degree, int rootMidiNote) const
     int scaleLen = 0;
     const int* scale = getScaleIntervals (scaleIdx, scaleLen);
 
-    if (scaleLen <= 0) { scaleLen = 1; }  // Safety guard
+    if (scaleLen <= 0) { scaleLen = kFallbackScaleLen; }  // Safety guard
 
     const double rootHz = 440.0 * std::pow (2.0, (rootMidiNote - 69) / 12.0);
     const int octave      = degree / scaleLen;
@@ -270,7 +271,7 @@ void BLETonesAudioProcessor::oscMessageReceived (const juce::OSCMessage& msg)
                     static_cast<int> (*apvts.getRawParameterValue ("scaleType")));
                 int scaleLen = 0;
                 getScaleIntervals (scaleIdx, scaleLen);
-                if (scaleLen <= 0) { scaleLen = 5; }
+                if (scaleLen <= 0) { scaleLen = kFallbackScaleLen; }
 
                 DeviceState ds;
                 ds.baseDegree = hashName (name) % (scaleLen * kBaseDegreeOctaves);
@@ -353,7 +354,7 @@ void BLETonesAudioProcessor::triggerNotesForDevice (const juce::String& id,
         static_cast<int> (*apvts.getRawParameterValue ("scaleType")));
     int scaleLen = 0;
     getScaleIntervals (scaleIdx, scaleLen);
-    if (scaleLen <= 0) { scaleLen = 5; }
+    if (scaleLen <= 0) { scaleLen = kFallbackScaleLen; }
 
     for (int i = 0; i < numNotes; ++i)
     {

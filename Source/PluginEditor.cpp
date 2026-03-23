@@ -31,6 +31,10 @@ static constexpr float kRssiMax        =  -30.0f;
 static constexpr float kAnimCycleFrames = 45.0f;
 static constexpr int   kMaxDeviceRows   = 8;
 
+// Musical note names (shared between key combo and stats display)
+static const char* const kNoteNames[] = { "C", "C#", "D", "D#", "E", "F",
+                                           "F#", "G", "G#", "A", "A#", "B" };
+
 //==============================================================================
 // BLETonesLookAndFeel – warm-gold sliders on dark background
 //==============================================================================
@@ -163,15 +167,13 @@ BLETonesAudioProcessorEditor::BLETonesAudioProcessorEditor (BLETonesAudioProcess
     keyLabel.setText ("Key", juce::dontSendNotification);
     addAndMakeVisible (keyLabel);
     {
-        static const char* noteNames[] = { "C", "C#", "D", "D#", "E", "F",
-                                            "F#", "G", "G#", "A", "A#", "B" };
         // Populate with musical notes from C1 (MIDI 24) to C5 (MIDI 72)
         // matching the Electron app's root note slider range
         int itemId = 1;
         for (int midi = 24; midi <= 72; ++midi)
         {
             const int octave = (midi / 12) - 1;
-            const juce::String label = juce::String (noteNames[midi % 12])
+            const juce::String label = juce::String (kNoteNames[midi % 12])
                                      + juce::String (octave);
             keyCombo.addItem (label, itemId++);
         }
@@ -521,11 +523,9 @@ void BLETonesAudioProcessorEditor::paintSoundStatsPanel (juce::Graphics& g, int 
 
     // Current key display
     {
-        static const char* noteNames[] = { "C", "C#", "D", "D#", "E", "F",
-                                            "F#", "G", "G#", "A", "A#", "B" };
         const int midi   = static_cast<int> (*audioProcessor.apvts.getRawParameterValue ("rootNote"));
         const int octave = (midi / 12) - 1;
-        drawStatRow ("Key:", juce::String (noteNames[midi % 12]) + juce::String (octave));
+        drawStatRow ("Key:", juce::String (kNoteNames[midi % 12]) + juce::String (octave));
     }
 
     // Current scale display

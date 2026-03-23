@@ -11,6 +11,18 @@ static constexpr int kScale[]    = { 0, 2, 3, 7, 9 };
 static constexpr int kScaleSize  = 5;
 
 //==============================================================================
+// Sound-generation tuning constants
+//==============================================================================
+static constexpr int   kBaseDegreeOctaves = 3;      // Hash range spans this many scale-octaves
+static constexpr float kDeltaToAmpScale   = 6.0f;   // Movement delta → amplitude scaling
+static constexpr float kMinDecaySec       = 1.5f;    // Shortest note decay (far devices)
+static constexpr float kDecayRangeScale   = 3.0f;    // Additional decay for close devices (total max = 4.5 s)
+static constexpr int   kPanHashRange      = 140;     // Hash range for pan (mapped to −0.7…+0.7)
+static constexpr float kPanHashOffset     = 70.0f;   // Centre offset for pan hash
+static constexpr int   kDetuneHashRange   = 50;      // Hash range for per-voice random detune
+static constexpr float kDetuneStep        = 0.0001f; // Per-hash-unit detune (total range 0.001–0.006)
+
+//==============================================================================
 juce::AudioProcessorValueTreeState::ParameterLayout
     BLETonesAudioProcessor::createParameterLayout()
 {
@@ -140,8 +152,9 @@ double BLETonesAudioProcessor::degreeToFreq (int degree, int rootMidiNote) const
     // Scale degree 0 = root.  Positive degrees walk up the scale across octaves.
     const double rootHz = 440.0 * std::pow (2.0, (rootMidiNote - 69) / 12.0);
     const int octave      = degree / kScaleSize;
-    const int withinScale = degree % kScaleSize;
-    const int semitones   = kScale[std::abs (withinScale)] + octave * 12;
+    // Normalise modulo to [0, kScaleSize) even for negative degrees
+    const int withinScale = ((degree % kScaleSize) + kScaleSize) % kScaleSize;
+    const int semitones   = kScale[withinScale] + octave * 12;
     return rootHz * std::pow (2.0, semitones / 12.0);
 }
 
@@ -190,7 +203,7 @@ void BLETonesAudioProcessor::oscMessageReceived (const juce::OSCMessage& msg)
             if (deviceStateMap.find (name) == deviceStateMap.end())
             {
                 DeviceState ds;
-                ds.baseDegree = hashName (name) % (kScaleSize * 3); // 0–14
+                ds.baseDegree = hashName (name) % (kScaleSize * kBaseDegreeOctaves);
                 deviceStateMap[name] = ds;
             }
             delta = 0.0f; // No delta for first sighting
@@ -249,10 +262,10 @@ void BLETonesAudioProcessor::triggerNotesForDevice (const juce::String& id,
 
     // ── Amplitude: driven by movement delta, NOT proximity ───────────────
     //    More movement = louder, capped at 0.8 to stay pleasant
-    const float amp = juce::jlimit (0.15f, 0.8f, delta * 6.0f);
+    const float amp = juce::jlimit (0.15f, 0.8f, delta * kDeltaToAmpScale);
 
     // ── Decay time: close devices ring longer for more sonic presence ────
-    const float baseDecay = 1.5f + normRssi * 3.0f; // 1.5–4.5 s
+    const float baseDecay = kMinDecaySec + normRssi * kDecayRangeScale;
 
     // ── Octave spread: close devices spread wider ────────────────────────
     //    Far:   all in same octave
@@ -281,8 +294,9 @@ void BLETonesAudioProcessor::triggerNotesForDevice (const juce::String& id,
         // Amplitude tapers for upper chord tones
         const float noteAmp = amp * (1.0f - (float) i * 0.15f);
 
-        // Random panning for spatial distribution
-        const float pan = ((float) (hashName (id + juce::String (i)) % 140) - 70.0f) / 100.0f;
+        // Panning via hash for consistent spatial placement (range ≈ −0.7…+0.7)
+        const float pan = ((float) (hashName (id + juce::String (i)) % kPanHashRange)
+                          - kPanHashOffset) / 100.0f;
 
         // Slightly different decay per note for organic feel
         const float decay = baseDecay + (float) i * 0.3f;
@@ -336,8 +350,9 @@ void BLETonesAudioProcessor::activateVoice (const PendingNote& note)
         ? static_cast<float> (std::pow (0.001, 1.0 / totalSamples))
         : 0.0f;
 
-    // Slight random detune for warmth (1.001–1.006)
-    v.detuneRatio = 1.001f + (float) (hashName (juce::String (note.frequency)) % 50) * 0.0001f;
+    // Slight random detune for warmth (range ≈ 1.001–1.006)
+    v.detuneRatio = 1.001f
+        + (float) (hashName (juce::String (note.frequency)) % kDetuneHashRange) * kDetuneStep;
 
     // Sub oscillator louder for lower frequencies (warmer bass, thinner treble)
     v.subMix = juce::jlimit (0.0f, 0.4f,

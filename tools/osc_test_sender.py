@@ -21,6 +21,19 @@ import sys
 import time
 
 
+# ============================================================================
+# Simulation parameters (adjust to change behavior)
+# ============================================================================
+RSSI_BASE_CLOSEST = -40       # RSSI for the closest device (dBm)
+RSSI_SPACING = 10             # RSSI decrease per device index
+RSSI_MIN_FLOOR = -90          # Minimum base RSSI value
+RSSI_VALID_MIN = -100         # Valid RSSI range minimum (dBm)
+RSSI_VALID_MAX = -30          # Valid RSSI range maximum (dBm)
+WAVE_FREQUENCY = 0.3          # Sine wave frequency for RSSI oscillation
+WAVE_AMPLITUDE = 8            # Amplitude of RSSI oscillation (dBm)
+JITTER_RANGE = 3              # Random jitter range (+/-)
+
+
 def osc_string(s: str) -> bytes:
     """Encode a string as an OSC string (null-terminated, 4-byte aligned)."""
     b = s.encode("utf-8") + b"\x00"
@@ -71,6 +84,14 @@ Examples:
     parser.add_argument("-v", "--verbose", action="store_true", help="Print each message sent")
     args = parser.parse_args()
 
+    # Validate arguments
+    if not (1 <= args.port <= 65535):
+        parser.error(f"--port must be between 1 and 65535, got {args.port}")
+    if args.devices < 1:
+        parser.error(f"--devices must be at least 1, got {args.devices}")
+    if args.interval < 0:
+        parser.error(f"--interval must be non-negative, got {args.interval}")
+
     # Device names to simulate
     device_names = [
         "iPhone",
@@ -93,9 +114,9 @@ Examples:
     # Base RSSI for each device (closer devices = higher RSSI)
     device_base_rssi = {}
     for i, name in enumerate(selected_devices):
-        # Spread devices from -40 (very close) to -80 (moderate distance)
-        base = -40 - (i * 10)
-        device_base_rssi[name] = max(-90, base)
+        # Spread devices from closest to moderate distance
+        base = RSSI_BASE_CLOSEST - (i * RSSI_SPACING)
+        device_base_rssi[name] = max(RSSI_MIN_FLOOR, base)
 
     addr = (args.host, args.port)
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -134,10 +155,12 @@ Examples:
                 # - Slow sine wave (walking around)
                 # - Random jitter (measurement noise)
                 base = device_base_rssi[name]
-                wave = math.sin(elapsed * 0.3 + hash(name) % 100) * 8  # Slow oscillation
-                jitter = random.randint(-3, 3)  # Small random noise
+                # Use hash for deterministic per-device phase offset
+                phase_offset = hash(name) % 100
+                wave = math.sin(elapsed * WAVE_FREQUENCY + phase_offset) * WAVE_AMPLITUDE
+                jitter = random.randint(-JITTER_RANGE, JITTER_RANGE)
                 rssi = int(base + wave + jitter)
-                rssi = max(-100, min(-30, rssi))  # Clamp to valid range
+                rssi = max(RSSI_VALID_MIN, min(RSSI_VALID_MAX, rssi))  # Clamp to valid range
                 
                 send_rssi(sock, addr, name, rssi, args.verbose)
             

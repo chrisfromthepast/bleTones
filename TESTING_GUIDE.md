@@ -305,7 +305,7 @@ warning ("app is from an unidentified developer") — right-click the `.app` and
 choose "Open" to bypass this, or run:
 ```bash
 xattr -cr bleTones.app
-xattr -cr bleTones\ Helper.app
+xattr -cr "bleTones Helper.app"
 ```
 
 ### Do I need to register anything on Windows?

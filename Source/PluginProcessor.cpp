@@ -198,6 +198,7 @@ void BLETonesAudioProcessor::updateReverbForHalloweenMode (bool halloween)
         rp.freezeMode = 0.0f;
     }
     reverb.setParameters (rp);
+    reverb.reset();  // Clear internal state to avoid audio artifacts when switching modes
 }
 
 void BLETonesAudioProcessor::releaseResources() {}

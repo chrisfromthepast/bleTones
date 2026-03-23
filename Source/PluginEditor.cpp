@@ -651,7 +651,7 @@ void BLETonesAudioProcessorEditor::paintSoundStatsPanel (juce::Graphics& g, int 
     constexpr float rowH = 26.0f;
     float rowY = py + 48.0f;
 
-    auto drawStatRow = [&, muted] (const juce::String& label, const juce::String& value)
+    auto drawStatRow = [&] (const juce::String& label, const juce::String& value)
     {
         g.setColour (muted);
         g.setFont (juce::Font (12.0f));

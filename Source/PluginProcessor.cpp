@@ -84,19 +84,63 @@ static constexpr float kHeartbeatAmpFactor= 0.6f;    // Heartbeat notes are soft
 //==============================================================================
 // Voice Type names – matching the Electron app's instrument flavors
 //==============================================================================
-const juce::StringArray& BLETonesAudioProcessor::getVoiceTypeNames()
+const juce::StringArray& BLETonesAudioProcessor::getEnsembleNames()
 {
     static const juce::StringArray names
     {
-        "Pad (Enya)",         // Slow attack, long sustain - like Choir Pad / Soft String
-        "Pluck (Harp)",       // Quick attack, medium decay - like Celtic Harp
-        "Bell (Vibes)",       // Quick attack, long shimmering ring - like Vibraphone
-        "Drone (Ambient)",    // Very slow attack, very long sustain - like Low Drone
-        "Flute (Breathy)",    // Breathy with vibrato - like Native Flute
-        "Keys (Warm)",        // Soft attack, warm piano-like - like Electric Piano
-        "Guitar (Clean)"      // Quick pluck attack, medium sustain - like Clean Guitar
+        "Melodic (Enya)",      // Choir Pad + Celtic Harp + Soft String
+        "Ambient (Flute)",     // Native Flute + Low Drone + Wind Pad
+        "Ethereal (Jazz)",     // Clean Guitar + Warm Keys + Shimmer Chorus
+        "Percussive (Mallet)", // Vibraphone + Marimba + Glockenspiel
+        "Chamber (Classical)", // Strings + Harp + Bells
+        "Minimal (Pure)"       // Pure sine drones + soft pads
     };
     return names;
+}
+
+const juce::StringArray& BLETonesAudioProcessor::getInstrumentNames()
+{
+    static const juce::StringArray names
+    {
+        // Melodic ensemble
+        "Choir Pad",       // Layered vowel-like pad
+        "Celtic Harp",     // Bright plucked harp
+        "Soft String",     // Warm bowed string
+        // Ambient ensemble
+        "Native Flute",    // Breathy with vibrato
+        "Low Drone",       // Deep sustained tone
+        "Wind Pad",        // Airy wind texture
+        // Ethereal ensemble
+        "Clean Guitar",    // Plucked clean electric
+        "Warm Keys",       // Rhodes-like piano
+        "Shimmer Chorus",  // Bright shimmery texture
+        // Percussive ensemble
+        "Vibraphone",      // Metallic with tremolo
+        "Marimba",         // Warm woody percussion
+        "Glockenspiel"     // Bright bell-like chime
+    };
+    return names;
+}
+
+std::vector<int> BLETonesAudioProcessor::getEnsembleInstruments (int ensembleType) const
+{
+    // Each ensemble returns 2-3 complementary instruments that play together
+    switch (static_cast<EnsembleType> (ensembleType))
+    {
+        case EnsembleMelodic:
+            return { InstChoirPad, InstCelticHarp, InstSoftString };
+        case EnsembleAmbient:
+            return { InstNativeFlute, InstLowDrone, InstWindPad };
+        case EnsembleEthereal:
+            return { InstCleanGuitar, InstWarmKeys, InstShimmerChorus };
+        case EnsemblePercussive:
+            return { InstVibraphone, InstMarimba, InstGlockenspiel };
+        case EnsembleChamber:
+            return { InstSoftString, InstCelticHarp, InstVibraphone };
+        case EnsembleMinimal:
+        default:
+            return { InstChoirPad, InstLowDrone };
+    }
 }
 
 //==============================================================================
@@ -133,12 +177,12 @@ juce::AudioProcessorValueTreeState::ParameterLayout
         "Halloween Mode",
         false));  // Default: off
 
-    // Voice type selection - matching Electron app's instrument flavors
+    // Ensemble type selection - curated combinations of complementary instruments
     layout.add (std::make_unique<juce::AudioParameterChoice> (
-        "voiceType",
-        "Voice Type",
-        getVoiceTypeNames(),
-        0));  // Default: Pad (Enya)
+        "ensembleType",
+        "Ensemble",
+        getEnsembleNames(),
+        0));  // Default: Melodic (Enya)
 
     // Attack time control (0.01s to 2.0s) - allows user to control how fast notes fade in
     layout.add (std::make_unique<juce::AudioParameterFloat> (
@@ -404,10 +448,13 @@ void BLETonesAudioProcessor::triggerNotesForDevice (const juce::String& id,
     auto&     ds       = deviceStateMap[id];
     const int baseDeg  = ds.baseDegree;
     
-    // Get voice type and envelope parameters from plugin state
-    const int voiceType = static_cast<int> (*apvts.getRawParameterValue ("voiceType"));
+    // Get ensemble type and envelope parameters from plugin state
+    const int ensembleType = static_cast<int> (*apvts.getRawParameterValue ("ensembleType"));
     const float userAttack = *apvts.getRawParameterValue ("attackTime");
     const float userRelease = *apvts.getRawParameterValue ("releaseTime");
+    
+    // Get the instruments in this ensemble
+    const auto instruments = getEnsembleInstruments (ensembleType);
 
     // ── Number of chord notes: proximity drives richness ─────────────────
     //    Far (low RSSI):  1 note
@@ -425,7 +472,7 @@ void BLETonesAudioProcessor::triggerNotesForDevice (const juce::String& id,
 
     // ── Amplitude: driven by movement delta, NOT proximity ───────────────
     //    More movement = louder, capped at 0.8 to stay pleasant
-    const float amp = juce::jlimit (0.15f, 0.8f, delta * kDeltaToAmpScale);
+    const float baseAmp = juce::jlimit (0.15f, 0.8f, delta * kDeltaToAmpScale);
 
     // ── Decay time: use user's release time setting, modulated by proximity
     //    Close devices ring longer for more sonic presence
@@ -449,6 +496,7 @@ void BLETonesAudioProcessor::triggerNotesForDevice (const juce::String& id,
     getScaleIntervals (scaleIdx, scaleLen);
     if (scaleLen <= 0) { scaleLen = kFallbackScaleLen; }
 
+    // For each chord note, trigger voices from multiple instruments in the ensemble
     for (int i = 0; i < numNotes; ++i)
     {
         const int degree = baseDeg + chordOffsets[i];
@@ -462,20 +510,37 @@ void BLETonesAudioProcessor::triggerNotesForDevice (const juce::String& id,
 
         const double freq = degreeToFreq (degree + octOff * scaleLen, rootNote);
 
-        // Amplitude tapers for upper chord tones
-        const float noteAmp = amp * (1.0f - (float) i * 0.15f);
-
         // Panning via hash for consistent spatial placement (range ≈ −0.7…+0.7)
-        const float pan = ((float) (hashName (id + juce::String (i)) % kPanHashRange)
-                          - kPanHashOffset) / 100.0f;
-
-        // Slightly different decay per note for organic feel
-        const float decay = baseDecay + (float) i * 0.5f;
+        const float basePan = ((float) (hashName (id + juce::String (i)) % kPanHashRange)
+                              - kPanHashOffset) / 100.0f;
         
-        // Slightly different attack per note for organic stagger
-        const float attack = userAttack * (1.0f + (float) i * 0.1f);
+        // Each ensemble instrument plays this note with slightly different characteristics
+        // This creates a rich, layered sound instead of one-note fatigue
+        for (size_t instIdx = 0; instIdx < instruments.size(); ++instIdx)
+        {
+            const int instType = instruments[instIdx];
+            
+            // Amplitude varies by instrument position in ensemble
+            // Primary instrument (first) is loudest, others complement
+            float instAmpMult = 1.0f;
+            if (instIdx == 1) instAmpMult = 0.6f;       // Second instrument softer
+            else if (instIdx == 2) instAmpMult = 0.4f;  // Third instrument softest
+            
+            // Taper amplitude for upper chord tones
+            const float noteAmp = baseAmp * instAmpMult * (1.0f - (float) i * 0.12f);
+            
+            // Slight pan spread across instruments for width
+            const float panOffset = (float) instIdx * 0.15f - 0.15f;
+            const float pan = juce::jlimit (-0.9f, 0.9f, basePan + panOffset);
+            
+            // Slightly different decay per instrument for organic layering
+            const float decay = baseDecay + (float) instIdx * 0.8f + (float) i * 0.3f;
+            
+            // Stagger attack times slightly for a more natural ensemble feel
+            const float attack = userAttack * (1.0f + (float) instIdx * 0.15f + (float) i * 0.05f);
 
-        pendingNotes.push_back ({ freq, noteAmp, pan, decay, attack, voiceType });
+            pendingNotes.push_back ({ freq, noteAmp, pan, decay, attack, instType });
+        }
     }
 }
 
@@ -511,74 +576,353 @@ void BLETonesAudioProcessor::activateVoice (const PendingNote& note)
     v.active       = true;
     v.phase1       = 0.0;
     v.phase2       = 0.0;
+    v.phase3       = 0.0;
+    v.phase4       = 0.0;
+    v.phase5       = 0.0;
     v.phaseSub     = 0.0;
     v.phaseTrem    = 0.0;
     v.phaseVibrato = 0.0;
-    v.phase3       = 0.0;
     v.frequency    = note.frequency;
     v.amplitude    = note.amplitude;
     v.pan          = note.pan;
-    v.voiceType    = note.voiceType;
+    v.instrumentType = note.instrumentType;
     
-    // ── Set up ADSR envelope based on voice type ─────────────────────────────
-    // Start in Attack stage with envelope at 0, ramping up
+    // Reset modulation
+    v.vibratoDepth = 0.0f;
+    v.tremDepth = halloween ? 0.15f : 0.0f;
+    v.tremRate = halloween ? 4.5f : 0.0f;
+    
+    // ── Set up ADSR envelope based on instrument type ────────────────────────
     v.envStage = Voice::Attack;
     v.envelope = 0.0f;
     
     // Calculate attack rate (per-sample increment to reach 1.0)
-    // attackTime is in seconds, we need per-sample increment
     const double attackSamples = sampleRate * (double) note.attackSec;
     v.attackRate = (attackSamples > 0.0)
         ? static_cast<float> (1.0 / attackSamples)
-        : 1.0f;  // Instant attack if 0
+        : 1.0f;
     
-    // Sustain level varies by voice type (matching Electron app characteristics)
-    // Calculate sustain time (time to hold after attack before release)
-    // and decay rate based on voice type
+    // ── Configure each instrument type with its unique characteristics ───────
+    // Based on the original Electron app's Web Audio implementations
     float sustainTimeSec = 0.0f;
     
-    switch (static_cast<VoiceType> (note.voiceType))
+    // Set defaults
+    v.waveType1 = 0;  // sine
+    v.waveType2 = 0;  // sine
+    v.waveType3 = 0;  // sine
+    v.harmDecayMult = 1.0f;
+    v.filterCoef2 = 0.5f;
+    v.filterState2 = 0.0f;
+    
+    const int freqHash = hashName (juce::String (note.frequency));
+    
+    switch (static_cast<InstrumentType> (note.instrumentType))
     {
-        case VoicePad:      // Slow attack, long sustain (Enya/Choir)
+        // ══════════════════════════════════════════════════════════════════════
+        // MELODIC ENSEMBLE (Enya-inspired)
+        // ══════════════════════════════════════════════════════════════════════
+        
+        case InstChoirPad:
+            // Layered vowel-like pad with formant filtering
+            // Multiple detuned oscillators for thick choir effect
+            // Detunes: 0, +3, -3, +7, -7 cents for chorus
             v.sustainLevel = 0.85f;
-            sustainTimeSec = note.decaySec * 0.5f;  // Half of total time is sustain
+            sustainTimeSec = note.decaySec * 0.5f;
+            v.waveType1 = 0;  // sine
+            v.waveType2 = 1;  // triangle
+            v.waveType3 = 0;  // sine
+            v.detuneRatio1 = 1.0f + 3.0f / 1200.0f;   // +3 cents
+            v.detuneRatio2 = 1.0f - 3.0f / 1200.0f;   // -3 cents
+            v.harmonicRatio1 = 1.0f + 7.0f / 1200.0f; // +7 cents
+            v.harmonicRatio2 = 1.0f - 7.0f / 1200.0f; // -7 cents
+            v.osc1Mix = 0.30f;  // Main
+            v.osc2Mix = 0.25f;  // Detuned triangle
+            v.osc3Mix = 0.20f;  // Detuned sine
+            v.osc4Mix = 0.15f;  // Wide detune
+            v.osc5Mix = 0.10f;  // Widest detune
+            v.subMix = 0.15f;
+            // Formant-like filtering for vowel quality
+            v.filterCoef = juce::jlimit (0.1f, 0.4f, (float) note.frequency / 1500.0f);
+            v.filterCoef2 = 0.6f;  // Bandpass-like character
             break;
             
-        case VoicePluck:    // Quick attack, medium decay (Celtic Harp)
-            v.sustainLevel = 0.6f;
-            sustainTimeSec = note.decaySec * 0.1f;  // Short sustain, mostly decay
+        case InstCelticHarp:
+            // Bright plucked harp with ringing harmonics
+            // Fundamental + harmonics that decay at different rates
+            // Harmonics: 1, 2, 3, 4.01, 5.02 with fast decay
+            v.sustainLevel = 0.4f;
+            sustainTimeSec = note.decaySec * 0.08f;  // Very short sustain, mostly decay
+            v.waveType1 = 1;  // triangle for fundamental
+            v.waveType2 = 0;  // sine for harmonics
+            v.waveType3 = 0;  // sine
+            v.harmonicRatio1 = 2.0f;
+            v.harmonicRatio2 = 3.0f;
+            v.detuneRatio1 = 4.01f;  // Slightly detuned 4th harmonic
+            v.detuneRatio2 = 5.02f;  // Slightly detuned 5th harmonic
+            v.osc1Mix = 0.50f;  // Strong fundamental
+            v.osc2Mix = 0.25f;  // 2nd harmonic
+            v.osc3Mix = 0.12f;  // 3rd harmonic
+            v.osc4Mix = 0.08f;  // 4th harmonic
+            v.osc5Mix = 0.05f;  // 5th harmonic
+            v.subMix = 0.0f;
+            v.harmDecayMult = 2.5f;  // Harmonics decay faster than fundamental
+            v.filterCoef = juce::jlimit (0.3f, 0.8f, (float) note.frequency / 800.0f);
             break;
             
-        case VoiceBell:     // Quick attack, long shimmering ring (Vibraphone)
-            v.sustainLevel = 0.7f;
-            sustainTimeSec = note.decaySec * 0.3f;
-            break;
-            
-        case VoiceDrone:    // Very slow attack, very long sustain
-            v.sustainLevel = 0.9f;
-            sustainTimeSec = note.decaySec * 0.7f;  // Most of time is sustain
-            break;
-            
-        case VoiceFlute:    // Breathy with vibrato
-            v.sustainLevel = 0.75f;
+        case InstSoftString:
+            // Warm sustained string with bowed character
+            // Sawtooth filtered for string warmth, slight detune for ensemble
+            v.sustainLevel = 0.80f;
             sustainTimeSec = note.decaySec * 0.4f;
-            v.vibratoRate  = 5.5f + (float) (hashName (juce::String (note.frequency)) % 20) * 0.1f;
-            v.vibratoDepth = 4.0f + note.frequency * 0.003f;  // Subtle pitch vibrato
+            v.waveType1 = 2;  // sawtooth
+            v.waveType2 = 2;  // sawtooth (detuned)
+            v.waveType3 = 0;  // sine sub
+            v.detuneRatio1 = 1.003f;  // Slight detune for ensemble effect
+            v.detuneRatio2 = 0.997f;
+            v.harmonicRatio1 = 1.0f;
+            v.harmonicRatio2 = 0.5f;  // Sub-octave
+            v.osc1Mix = 0.24f;
+            v.osc2Mix = 0.24f;
+            v.osc3Mix = 0.12f;
+            v.osc4Mix = 0.0f;
+            v.osc5Mix = 0.0f;
+            v.subMix = 0.10f;
+            // Gentle low-pass for warm, not buzzy tone
+            v.filterCoef = juce::jlimit (0.08f, 0.35f, (float) note.frequency / 2000.0f);
             break;
             
-        case VoiceKeys:     // Soft attack, warm piano-like
-            v.sustainLevel = 0.65f;
-            sustainTimeSec = note.decaySec * 0.25f;
+        // ══════════════════════════════════════════════════════════════════════
+        // AMBIENT ENSEMBLE (Native American Flute-inspired)
+        // ══════════════════════════════════════════════════════════════════════
+        
+        case InstNativeFlute:
+            // Breathy sine with vibrato and filtered noise breath component
+            // Pure tone with subtle vibrato (4.5 Hz, narrow depth)
+            v.sustainLevel = 0.75f;
+            sustainTimeSec = note.decaySec * 0.35f;
+            v.waveType1 = 0;  // Pure sine
+            v.waveType2 = 0;  // sine
+            v.waveType3 = 0;
+            v.detuneRatio1 = 1.0f;
+            v.detuneRatio2 = 2.0f;  // Octave above (breath character)
+            v.harmonicRatio1 = 1.0f;
+            v.harmonicRatio2 = 1.0f;
+            v.osc1Mix = 0.55f;   // Strong fundamental
+            v.osc2Mix = 0.08f;   // Subtle breath harmonic
+            v.osc3Mix = 0.0f;
+            v.osc4Mix = 0.0f;
+            v.osc5Mix = 0.0f;
+            v.subMix = 0.0f;
+            // Vibrato settings
+            v.vibratoRate = 4.5f + (float) (freqHash % 10) * 0.1f;
+            v.vibratoDepth = (float) note.frequency * 0.008f;  // Narrow depth
+            v.filterCoef = juce::jlimit (0.15f, 0.6f, (float) note.frequency / 1200.0f);
             break;
             
-        case VoiceGuitar:   // Quick pluck, medium sustain
+        case InstLowDrone:
+            // Deep sustained tone with sub-octave and perfect fifth
+            // Very slow attack, very long sustain
+            v.sustainLevel = 0.92f;
+            sustainTimeSec = note.decaySec * 0.65f;
+            v.waveType1 = 0;  // sine
+            v.waveType2 = 1;  // triangle for sub
+            v.waveType3 = 0;  // sine for fifth
+            v.detuneRatio1 = 0.5f;   // Sub-octave
+            v.detuneRatio2 = 1.5f;   // Perfect fifth
+            v.harmonicRatio1 = 0.5f;
+            v.harmonicRatio2 = 1.5f;
+            v.osc1Mix = 0.35f;
+            v.osc2Mix = 0.30f;  // Sub-octave
+            v.osc3Mix = 0.10f;  // Fifth
+            v.osc4Mix = 0.0f;
+            v.osc5Mix = 0.0f;
+            v.subMix = 0.25f;
+            // Dark filtering for drone
+            v.filterCoef = juce::jlimit (0.06f, 0.25f, (float) note.frequency / 1500.0f);
+            break;
+            
+        case InstWindPad:
+            // Airy, nature-inspired wind texture
+            // Pink noise-like through resonant filters (simulated with detuned oscillators)
+            v.sustainLevel = 0.70f;
+            sustainTimeSec = note.decaySec * 0.45f;
+            v.waveType1 = 0;  // sine
+            v.waveType2 = 1;  // triangle
+            v.waveType3 = 0;  // sine
+            // Wide detuning for shimmery, airy quality
+            v.detuneRatio1 = 1.015f;
+            v.detuneRatio2 = 0.985f;
+            v.harmonicRatio1 = 2.01f;
+            v.harmonicRatio2 = 3.02f;
+            v.osc1Mix = 0.20f;
+            v.osc2Mix = 0.18f;
+            v.osc3Mix = 0.15f;
+            v.osc4Mix = 0.12f;
+            v.osc5Mix = 0.10f;
+            v.subMix = 0.08f;
+            // Resonant filtering for wind character
+            v.filterCoef = juce::jlimit (0.12f, 0.45f, (float) note.frequency / 1000.0f);
+            break;
+            
+        // ══════════════════════════════════════════════════════════════════════
+        // ETHEREAL ENSEMBLE (The Sea and Cake-inspired: indie jazz)
+        // ══════════════════════════════════════════════════════════════════════
+        
+        case InstCleanGuitar:
+            // Plucked clean electric guitar with gentle chorus
+            // Karplus-Strong-inspired: triangle wave with fast decay harmonics
+            v.sustainLevel = 0.45f;
+            sustainTimeSec = note.decaySec * 0.12f;
+            v.waveType1 = 1;  // triangle
+            v.waveType2 = 0;  // sine (2nd harmonic)
+            v.waveType3 = 1;  // triangle (chorus copy)
+            v.detuneRatio1 = 2.0f;      // 2nd harmonic
+            v.detuneRatio2 = 1.004f;    // Slight chorus
+            v.harmonicRatio1 = 2.0f;
+            v.harmonicRatio2 = 1.0f;
+            v.osc1Mix = 0.40f;
+            v.osc2Mix = 0.15f;
+            v.osc3Mix = 0.20f;  // Chorus
+            v.osc4Mix = 0.0f;
+            v.osc5Mix = 0.0f;
+            v.subMix = 0.0f;
+            v.harmDecayMult = 3.0f;  // Fast harmonic decay
+            // Filter sweep: starts bright, decays to mellow
+            v.filterCoef = juce::jlimit (0.25f, 0.75f, (float) note.frequency / 600.0f);
+            break;
+            
+        case InstWarmKeys:
+            // Rhodes-like electric piano with bell overtone
+            // Sine fundamental + bell-like inharmonic overtone at 7×
+            v.sustainLevel = 0.60f;
+            sustainTimeSec = note.decaySec * 0.20f;
+            v.waveType1 = 0;  // sine
+            v.waveType2 = 0;  // sine (2nd)
+            v.waveType3 = 0;  // sine (bell)
+            v.detuneRatio1 = 2.0f;      // Octave
+            v.detuneRatio2 = 7.0f;      // Inharmonic bell (characteristic Rhodes tine)
+            v.harmonicRatio1 = 2.0f;
+            v.harmonicRatio2 = 7.0f;
+            v.osc1Mix = 0.45f;
+            v.osc2Mix = 0.18f;
+            v.osc3Mix = 0.12f;  // Bell overtone
+            v.osc4Mix = 0.0f;
+            v.osc5Mix = 0.0f;
+            v.subMix = 0.08f;
+            v.harmDecayMult = 4.0f;  // Bell decays faster
+            v.filterCoef = juce::jlimit (0.15f, 0.55f, (float) note.frequency / 1000.0f);
+            break;
+            
+        case InstShimmerChorus:
+            // Bright, shimmering indie texture with wide stereo
+            // Multiple detuned oscillators for shimmery chorus
+            v.sustainLevel = 0.72f;
+            sustainTimeSec = note.decaySec * 0.35f;
+            v.waveType1 = 1;  // triangle
+            v.waveType2 = 0;  // sine
+            v.waveType3 = 1;  // triangle
+            // Detunes: -8, -3, 0, +3, +8 cents for shimmer
+            v.detuneRatio1 = 1.0f + 3.0f / 1200.0f;
+            v.detuneRatio2 = 1.0f - 3.0f / 1200.0f;
+            v.harmonicRatio1 = 1.0f + 8.0f / 1200.0f;
+            v.harmonicRatio2 = 1.0f - 8.0f / 1200.0f;
+            v.osc1Mix = 0.22f;
+            v.osc2Mix = 0.20f;
+            v.osc3Mix = 0.18f;
+            v.osc4Mix = 0.16f;
+            v.osc5Mix = 0.14f;
+            v.subMix = 0.0f;
+            // Bright bandpass for shimmer quality
+            v.filterCoef = juce::jlimit (0.25f, 0.75f, (float) note.frequency / 800.0f);
+            break;
+            
+        // ══════════════════════════════════════════════════════════════════════
+        // PERCUSSIVE ENSEMBLE (Mallet instruments)
+        // ══════════════════════════════════════════════════════════════════════
+        
+        case InstVibraphone:
+            // Metallic bar with motor-like tremolo
+            // Inharmonic partials: 1, 3.99, 9.02 (characteristic vibraphone ratios)
             v.sustainLevel = 0.55f;
-            sustainTimeSec = note.decaySec * 0.15f;
+            sustainTimeSec = note.decaySec * 0.25f;
+            v.waveType1 = 0;  // sine
+            v.waveType2 = 0;  // sine
+            v.waveType3 = 0;  // sine
+            v.detuneRatio1 = 3.99f;     // Characteristic vibraphone partial
+            v.detuneRatio2 = 9.02f;     // Higher inharmonic partial
+            v.harmonicRatio1 = 3.99f;
+            v.harmonicRatio2 = 9.02f;
+            v.osc1Mix = 0.50f;
+            v.osc2Mix = 0.22f;
+            v.osc3Mix = 0.08f;
+            v.osc4Mix = 0.0f;
+            v.osc5Mix = 0.0f;
+            v.subMix = 0.0f;
+            // Vibraphone tremolo (simulates rotating motor disc)
+            v.tremRate = 5.5f + (float) (freqHash % 10) * 0.1f;
+            v.tremDepth = halloween ? 0.35f : 0.20f;
+            v.filterCoef = juce::jlimit (0.30f, 0.85f, (float) note.frequency / 600.0f);
+            break;
+            
+        case InstMarimba:
+            // Warm, woody pitched percussion
+            // Strong fundamental, gentle 2nd partial, soft higher (characteristic bar ratio 3.98)
+            v.sustainLevel = 0.40f;
+            sustainTimeSec = note.decaySec * 0.10f;
+            v.waveType1 = 0;  // sine
+            v.waveType2 = 0;  // sine
+            v.waveType3 = 1;  // triangle for body
+            v.detuneRatio1 = 3.98f;     // Characteristic marimba bar ratio
+            v.detuneRatio2 = 2.0f;      // Octave for body resonance
+            v.harmonicRatio1 = 3.98f;
+            v.harmonicRatio2 = 2.0f;
+            v.osc1Mix = 0.55f;
+            v.osc2Mix = 0.12f;
+            v.osc3Mix = 0.20f;  // Body resonance
+            v.osc4Mix = 0.0f;
+            v.osc5Mix = 0.0f;
+            v.subMix = 0.0f;
+            // Warm low-pass for woody character
+            v.filterCoef = juce::jlimit (0.15f, 0.50f, (float) note.frequency / 1000.0f);
+            break;
+            
+        case InstGlockenspiel:
+            // Bright, bell-like metallic chime
+            // Inharmonic partials: 1, 2.76, 5.40, 8.93 for metallic bell character
+            v.sustainLevel = 0.50f;
+            sustainTimeSec = note.decaySec * 0.18f;
+            v.waveType1 = 0;  // sine
+            v.waveType2 = 0;  // sine
+            v.waveType3 = 0;  // sine
+            v.detuneRatio1 = 2.76f;     // Inharmonic partial
+            v.detuneRatio2 = 5.40f;     // Higher inharmonic partial
+            v.harmonicRatio1 = 2.76f;
+            v.harmonicRatio2 = 8.93f;   // Highest partial
+            v.osc1Mix = 0.50f;
+            v.osc2Mix = 0.25f;
+            v.osc3Mix = 0.12f;
+            v.osc4Mix = 0.05f;
+            v.osc5Mix = 0.0f;
+            v.subMix = 0.0f;
+            // Bright but not harsh
+            v.filterCoef = juce::jlimit (0.40f, 0.90f, (float) note.frequency / 500.0f);
             break;
             
         default:
-            v.sustainLevel = 0.8f;
-            sustainTimeSec = note.decaySec * 0.3f;
+            // Fallback to soft pad
+            v.sustainLevel = 0.75f;
+            sustainTimeSec = note.decaySec * 0.4f;
+            v.osc1Mix = 0.40f;
+            v.osc2Mix = 0.30f;
+            v.osc3Mix = 0.15f;
+            v.osc4Mix = 0.0f;
+            v.osc5Mix = 0.0f;
+            v.subMix = 0.15f;
+            v.detuneRatio1 = 1.002f;
+            v.detuneRatio2 = 0.998f;
+            v.harmonicRatio1 = 2.0f;
+            v.harmonicRatio2 = 3.0f;
+            v.filterCoef = 0.3f;
             break;
     }
     
@@ -592,101 +936,37 @@ void BLETonesAudioProcessor::activateVoice (const PendingNote& note)
     v.envDecay = (releaseSamples > 0.0)
         ? static_cast<float> (std::pow (0.001, 1.0 / releaseSamples))
         : 0.0f;
-
-    // ── Voice type specific oscillator settings ──────────────────────────────
-    // Halloween mode: wider detune for eerie dissonance
-    if (halloween)
-    {
-        v.detuneRatio = 1.003f
-            + (float) (hashName (juce::String (note.frequency)) % kDetuneHashRange) * kDetuneStep * 3.0f;
-        v.tremRate  = 4.0f + (float) (hashName (juce::String (note.frequency)) % 10) * 0.5f;
-        v.tremDepth = 0.25f;
-    }
-    else
-    {
-        // Detune varies by voice type
-        switch (static_cast<VoiceType> (note.voiceType))
-        {
-            case VoicePad:
-                // Rich chorus-like detuning for pads
-                v.detuneRatio = 1.002f + (float) (hashName (juce::String (note.frequency)) % kDetuneHashRange) * kDetuneStep * 2.0f;
-                break;
-            case VoiceBell:
-                // Slight inharmonicity for bell-like quality
-                v.detuneRatio = 1.0f + (float) (hashName (juce::String (note.frequency)) % 30) * 0.0003f;
-                v.harmonicMix = 0.3f;  // Add harmonic content
-                break;
-            case VoiceFlute:
-                // Minimal detuning for purer tone
-                v.detuneRatio = 1.0005f;
-                break;
-            default:
-                v.detuneRatio = 1.001f + (float) (hashName (juce::String (note.frequency)) % kDetuneHashRange) * kDetuneStep;
-                break;
-        }
-        v.tremRate  = 0.0f;
-        v.tremDepth = 0.0f;
-    }
-
-    // Sub oscillator level varies by voice type
-    float subBase = halloween ? 0.55f : 0.4f;
-    switch (static_cast<VoiceType> (note.voiceType))
-    {
-        case VoiceDrone:
-            subBase = halloween ? 0.7f : 0.6f;  // More sub for drones
-            break;
-        case VoiceBell:
-        case VoiceFlute:
-            subBase = 0.15f;  // Less sub for bright voices
-            break;
-        case VoiceGuitar:
-        case VoicePluck:
-            subBase = 0.25f;  // Moderate sub for plucked
-            break;
-        default:
-            break;
-    }
-    v.subMix = juce::jlimit (0.0f, subBase,
-        1.0f - static_cast<float> (note.frequency / 600.0));
-
-    // Low-pass filter coefficient based on voice type
-    float filterMin, filterMax;
-    if (halloween)
-    {
-        filterMin = 0.10f;
-        filterMax = 0.45f;
-    }
-    else
-    {
-        switch (static_cast<VoiceType> (note.voiceType))
-        {
-            case VoicePad:
-            case VoiceDrone:
-                filterMin = 0.12f;
-                filterMax = 0.5f;  // Warmer, darker
-                break;
-            case VoiceBell:
-                filterMin = 0.25f;
-                filterMax = 0.85f;  // Brighter for shimmer
-                break;
-            case VoiceFlute:
-                filterMin = 0.2f;
-                filterMax = 0.7f;
-                break;
-            default:
-                filterMin = 0.15f;
-                filterMax = 0.6f;
-                break;
-        }
-    }
-    v.filterCoef = juce::jlimit (filterMin, filterMax,
-        static_cast<float> (note.frequency / 1200.0));
+    
+    // Reset filter state
     v.filterState = 0.0f;
+    v.filterState2 = 0.0f;
 }
 
 //==============================================================================
 // processBlock – render polyphonic voices with envelopes + reverb
 //==============================================================================
+
+// Helper function to generate waveforms
+static inline float generateWaveform (double phase, int waveType, double twoPi)
+{
+    switch (waveType)
+    {
+        case 0:  // Sine
+            return static_cast<float> (std::sin (phase));
+        case 1:  // Triangle
+        {
+            const float normalizedPhase = static_cast<float> (phase / twoPi);
+            return 2.0f * std::abs (2.0f * normalizedPhase - 1.0f) - 1.0f;
+        }
+        case 2:  // Sawtooth (band-limited approximation via filtered)
+        {
+            const float normalizedPhase = static_cast<float> (phase / twoPi);
+            return 2.0f * normalizedPhase - 1.0f;
+        }
+        default:
+            return static_cast<float> (std::sin (phase));
+    }
+}
 
 void BLETonesAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
                                             juce::MidiBuffer&         midiMessages)
@@ -728,14 +1008,15 @@ void BLETonesAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
         if (! v.active)
             continue;
 
-        // Base phase increments
-        double phaseInc1   = twoPi * v.frequency / sampleRate;
-        const double phaseInc2   = twoPi * v.frequency * (double) v.detuneRatio / sampleRate;
-        const double phaseIncSub = twoPi * v.frequency * 0.5 / sampleRate;
+        // Base phase increments for all oscillators
+        const double basePhaseInc = twoPi * v.frequency / sampleRate;
+        const double phaseInc2 = basePhaseInc * (double) v.detuneRatio1;
+        const double phaseInc3 = basePhaseInc * (double) v.detuneRatio2;
+        const double phaseInc4 = basePhaseInc * (double) v.harmonicRatio1;
+        const double phaseInc5 = basePhaseInc * (double) v.harmonicRatio2;
+        const double phaseIncSub = basePhaseInc * 0.5;
         const double phaseIncTrem = twoPi * (double) v.tremRate / sampleRate;
         const double phaseIncVibrato = twoPi * (double) v.vibratoRate / sampleRate;
-        // Third oscillator for bell/keys harmonics (2x frequency)
-        const double phaseInc3 = twoPi * v.frequency * 2.003 / sampleRate;
 
         for (int n = 0; n < numSamples; ++n)
         {
@@ -753,8 +1034,6 @@ void BLETonesAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
                     
                 case Voice::Sustain:
                     // Gradually approach sustain level during sustain phase
-                    // Uses exponential smoothing: env = 0.9999*env + 0.0001*target
-                    // At 44100 Hz, this smooths over ~4400 samples (~100ms) for natural feel
                     if (v.envelope > v.sustainLevel)
                         v.envelope = v.envelope * 0.9999f + v.sustainLevel * 0.0001f;
                     
@@ -770,8 +1049,8 @@ void BLETonesAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
                     break;
             }
             
-            // ── Apply vibrato for Flute voice (pitch modulation) ─────────
-            double effectivePhaseInc1 = phaseInc1;
+            // ── Apply vibrato (pitch modulation) ─────────────────────────
+            double effectivePhaseInc1 = basePhaseInc;
             if (v.vibratoDepth > 0.0f)
             {
                 const double vibrato = v.vibratoDepth * std::sin (v.phaseVibrato);
@@ -780,93 +1059,53 @@ void BLETonesAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
                 if (v.phaseVibrato > twoPi) v.phaseVibrato -= twoPi;
             }
             
-            // ── Voice type specific oscillator mixing ────────────────────
-            float sig;
-            const auto voiceType = static_cast<VoiceType> (v.voiceType);
-            
-            switch (voiceType)
+            // ── Harmonic decay for plucked/percussive instruments ────────
+            // Harmonics decay faster than the fundamental for plucked sounds
+            float harmEnv = v.envelope;
+            if (v.harmDecayMult > 1.0f)
             {
-                case VoicePad:
-                    // Rich layered pad: main + detuned + sub, all smooth sines
-                    sig = static_cast<float> (std::sin (v.phase1)) * 0.40f
-                        + static_cast<float> (std::sin (v.phase2)) * 0.35f
-                        + static_cast<float> (std::sin (v.phaseSub)) * v.subMix;
-                    break;
-                    
-                case VoicePluck:
-                    // Harp-like: brighter attack, harmonics that decay
-                    {
-                        const float harmDecay = v.envelope * v.envelope;  // Harmonics decay faster
-                        sig = static_cast<float> (std::sin (v.phase1)) * 0.50f
-                            + static_cast<float> (std::sin (v.phase2)) * 0.20f * harmDecay
-                            + static_cast<float> (std::sin (v.phase3)) * 0.15f * harmDecay * harmDecay;
-                    }
-                    break;
-                    
-                case VoiceBell:
-                    // Bell: inharmonic partials for shimmer
-                    // Ratios 2.76 and 1.51 approximate vibraphone bar modes (not integer harmonics)
-                    // creating the characteristic metallic bell timbre. Based on analysis of
-                    // struck bar instruments where partials are non-harmonic.
-                    {
-                        const float bellRing = 0.5f + 0.5f * v.envelope;  // Sustains shimmer
-                        sig = static_cast<float> (std::sin (v.phase1)) * 0.45f
-                            + static_cast<float> (std::sin (v.phase2 * 2.76)) * 0.25f * bellRing
-                            + static_cast<float> (std::sin (v.phase3 * 1.51)) * 0.20f * bellRing;
-                    }
-                    break;
-                    
-                case VoiceDrone:
-                    // Deep drone: emphasize sub, slow beating
-                    sig = static_cast<float> (std::sin (v.phase1)) * 0.35f
-                        + static_cast<float> (std::sin (v.phase2)) * 0.30f
-                        + static_cast<float> (std::sin (v.phaseSub)) * v.subMix * 1.3f
-                        + static_cast<float> (std::sin (v.phaseSub * 0.5)) * v.subMix * 0.4f;
-                    break;
-                    
-                case VoiceFlute:
-                    // Breathy: pure sine with subtle breath noise implied by filter
-                    sig = static_cast<float> (std::sin (v.phase1)) * 0.65f
-                        + static_cast<float> (std::sin (v.phase2)) * 0.15f;
-                    break;
-                    
-                case VoiceKeys:
-                    // Warm keys: fundamental + soft harmonics
-                    {
-                        const float keyDecay = std::sqrt (v.envelope);
-                        sig = static_cast<float> (std::sin (v.phase1)) * 0.50f
-                            + static_cast<float> (std::sin (v.phase2)) * 0.25f
-                            + static_cast<float> (std::sin (v.phase3)) * 0.12f * keyDecay;
-                    }
-                    break;
-                    
-                case VoiceGuitar:
-                    // Clean guitar: triangle-ish wave with quick harmonic decay
-                    // Triangle wave formula: 2*|2*(phase/2pi) - 1| - 1 maps phase [0,2pi] to [-1,+1]
-                    // in a linear up-down shape that sounds brighter than sine
-                    {
-                        const float guitarDecay = v.envelope * v.envelope * v.envelope;
-                        // Generate triangle wave from phase: linear ramp up then down
-                        const float normalizedPhase = static_cast<float> (v.phase1 / twoPi);
-                        const float tri = 2.0f * std::abs (2.0f * normalizedPhase - 1.0f) - 1.0f;
-                        sig = tri * 0.40f
-                            + static_cast<float> (std::sin (v.phase1)) * 0.30f
-                            + static_cast<float> (std::sin (v.phase3)) * 0.15f * guitarDecay;
-                    }
-                    break;
-                    
-                default:
-                    sig = static_cast<float> (std::sin (v.phase1)) * 0.45f
-                        + static_cast<float> (std::sin (v.phase2)) * 0.30f
-                        + static_cast<float> (std::sin (v.phaseSub)) * v.subMix;
-                    break;
+                // Apply exponential decay multiplier to harmonics
+                harmEnv = std::pow (v.envelope, v.harmDecayMult);
             }
+            
+            // ── Generate oscillators with appropriate waveforms ──────────
+            // Osc1: Fundamental
+            const float osc1 = generateWaveform (v.phase1, v.waveType1, twoPi);
+            
+            // Osc2: First detuned/harmonic
+            const float osc2 = generateWaveform (v.phase2, v.waveType2, twoPi);
+            
+            // Osc3: Second detuned/harmonic
+            const float osc3 = generateWaveform (v.phase3, v.waveType3, twoPi);
+            
+            // Osc4 & Osc5: Additional harmonics (always sine for smoothness)
+            const float osc4 = static_cast<float> (std::sin (v.phase4));
+            const float osc5 = static_cast<float> (std::sin (v.phase5));
+            
+            // Sub oscillator (always sine)
+            const float oscSub = static_cast<float> (std::sin (v.phaseSub));
+            
+            // ── Mix oscillators based on instrument configuration ────────
+            float sig = osc1 * v.osc1Mix
+                      + osc2 * v.osc2Mix * harmEnv
+                      + osc3 * v.osc3Mix * harmEnv
+                      + osc4 * v.osc4Mix * harmEnv
+                      + osc5 * v.osc5Mix * harmEnv
+                      + oscSub * v.subMix;
 
-            // Apply one-pole low-pass filter for warmth
+            // ── Apply one-pole low-pass filter for warmth ────────────────
             v.filterState += v.filterCoef * (sig - v.filterState);
             sig = v.filterState;
+            
+            // Optional second filter stage for instruments that need it
+            // (e.g., choir pad formant, sawtooth softening)
+            if (v.filterCoef2 < 0.95f)
+            {
+                v.filterState2 += v.filterCoef2 * (sig - v.filterState2);
+                sig = v.filterState2;
+            }
 
-            // Apply tremolo for spooky wavering effect (Halloween mode)
+            // ── Apply tremolo for vibraphone/Halloween effect ────────────
             if (v.tremDepth > 0.0f)
             {
                 const float tremMod = 1.0f - v.tremDepth * (0.5f + 0.5f * static_cast<float> (std::sin (v.phaseTrem)));
@@ -875,10 +1114,10 @@ void BLETonesAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
                 if (v.phaseTrem > twoPi) v.phaseTrem -= twoPi;
             }
 
-            // Apply envelope and amplitude
+            // ── Apply envelope and amplitude ─────────────────────────────
             sig *= v.envelope * v.amplitude;
 
-            // Equal-power panning
+            // ── Equal-power panning ──────────────────────────────────────
             const float leftGain  = std::sqrt ((1.0f - v.pan) * 0.5f);
             const float rightGain = std::sqrt ((1.0f + v.pan) * 0.5f);
 
@@ -886,16 +1125,20 @@ void BLETonesAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
             if (rightCh != nullptr)
                 rightCh[n] += sig * rightGain;
 
-            // Advance oscillator phases
-            v.phase1   += effectivePhaseInc1;
-            v.phase2   += phaseInc2;
+            // ── Advance oscillator phases ────────────────────────────────
+            v.phase1 += effectivePhaseInc1;
+            v.phase2 += phaseInc2;
+            v.phase3 += phaseInc3;
+            v.phase4 += phaseInc4;
+            v.phase5 += phaseInc5;
             v.phaseSub += phaseIncSub;
-            v.phase3   += phaseInc3;
 
             if (v.phase1   > twoPi) v.phase1   -= twoPi;
             if (v.phase2   > twoPi) v.phase2   -= twoPi;
-            if (v.phaseSub > twoPi) v.phaseSub -= twoPi;
             if (v.phase3   > twoPi) v.phase3   -= twoPi;
+            if (v.phase4   > twoPi) v.phase4   -= twoPi;
+            if (v.phase5   > twoPi) v.phase5   -= twoPi;
+            if (v.phaseSub > twoPi) v.phaseSub -= twoPi;
         }
 
         // Deactivate voices that have decayed to silence

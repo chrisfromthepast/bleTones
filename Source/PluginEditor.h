@@ -32,18 +32,27 @@ private:
     // Controls
     juce::Slider    volumeSlider;
     juce::Slider    sensitivitySlider;
+    juce::Slider    attackSlider;        // Attack time control
+    juce::Slider    releaseSlider;       // Release time control
     juce::Label     volumeLabel;
     juce::Label     sensitivityLabel;
+    juce::Label     attackLabel;
+    juce::Label     releaseLabel;
     juce::ComboBox  scaleCombo;
     juce::Label     scaleLabel;
     juce::ComboBox  keyCombo;
     juce::Label     keyLabel;
+    juce::ComboBox  voiceTypeCombo;      // Voice type selection
+    juce::Label     voiceTypeLabel;
     juce::ToggleButton halloweenToggle;
 
     // Parameter attachments
     juce::AudioProcessorValueTreeState::SliderAttachment   volumeAttachment;
     juce::AudioProcessorValueTreeState::SliderAttachment   sensitivityAttachment;
+    std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment>   attackAttachment;
+    std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment>   releaseAttachment;
     std::unique_ptr<juce::AudioProcessorValueTreeState::ComboBoxAttachment> scaleAttachment;
+    std::unique_ptr<juce::AudioProcessorValueTreeState::ComboBoxAttachment> voiceTypeAttachment;
     std::unique_ptr<juce::AudioProcessorValueTreeState::ButtonAttachment>   halloweenAttachment;
 
     // Cached device snapshot (refreshed at 15 Hz)

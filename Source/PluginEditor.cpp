@@ -231,13 +231,25 @@ BLETonesAudioProcessorEditor::BLETonesAudioProcessorEditor (BLETonesAudioProcess
     // Check initial Halloween mode state
     cachedHalloweenMode = p.isHalloweenMode();
     setLookAndFeel (cachedHalloweenMode ? halloweenLookAndFeel.get() : customLookAndFeel.get());
-    setSize (900, 640);
+    setSize (900, 700);  // Increased height to accommodate new controls
 
     // Halloween mode toggle
     halloweenToggle.setButtonText ("Halloween Mode");
     addAndMakeVisible (halloweenToggle);
     halloweenAttachment = std::make_unique<juce::AudioProcessorValueTreeState::ButtonAttachment> (
         p.apvts, "halloweenMode", halloweenToggle);
+
+    // Voice Type combo box (new - matching Electron app's flavors)
+    voiceTypeLabel.setText ("Voice Type", juce::dontSendNotification);
+    addAndMakeVisible (voiceTypeLabel);
+    {
+        const auto& names = BLETonesAudioProcessor::getVoiceTypeNames();
+        for (int i = 0; i < names.size(); ++i)
+            voiceTypeCombo.addItem (names[i], i + 1);  // ComboBox IDs are 1-based
+    }
+    addAndMakeVisible (voiceTypeCombo);
+    voiceTypeAttachment = std::make_unique<juce::AudioProcessorValueTreeState::ComboBoxAttachment> (
+        p.apvts, "voiceType", voiceTypeCombo);
 
     // Volume slider
     volumeLabel.setText ("Volume", juce::dontSendNotification);
@@ -252,6 +264,26 @@ BLETonesAudioProcessorEditor::BLETonesAudioProcessorEditor (BLETonesAudioProcess
     sensitivitySlider.setSliderStyle (juce::Slider::LinearHorizontal);
     sensitivitySlider.setTextBoxStyle (juce::Slider::TextBoxRight, false, 50, 20);
     addAndMakeVisible (sensitivitySlider);
+
+    // Attack Time slider (new - controls how slowly notes fade in)
+    attackLabel.setText ("Attack", juce::dontSendNotification);
+    addAndMakeVisible (attackLabel);
+    attackSlider.setSliderStyle (juce::Slider::LinearHorizontal);
+    attackSlider.setTextBoxStyle (juce::Slider::TextBoxRight, false, 50, 20);
+    attackSlider.setTextValueSuffix (" s");
+    addAndMakeVisible (attackSlider);
+    attackAttachment = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment> (
+        p.apvts, "attackTime", attackSlider);
+
+    // Release Time slider (new - controls how long notes ring/decay)
+    releaseLabel.setText ("Release", juce::dontSendNotification);
+    addAndMakeVisible (releaseLabel);
+    releaseSlider.setSliderStyle (juce::Slider::LinearHorizontal);
+    releaseSlider.setTextBoxStyle (juce::Slider::TextBoxRight, false, 50, 20);
+    releaseSlider.setTextValueSuffix (" s");
+    addAndMakeVisible (releaseSlider);
+    releaseAttachment = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment> (
+        p.apvts, "releaseTime", releaseSlider);
 
     // Scale / mode combo box – items must be added BEFORE the attachment
     scaleLabel.setText ("Scale", juce::dontSendNotification);
@@ -295,7 +327,7 @@ BLETonesAudioProcessorEditor::BLETonesAudioProcessorEditor (BLETonesAudioProcess
     }
     addAndMakeVisible (keyCombo);
 
-    generateNetNodes (900, 640);
+    generateNetNodes (900, 700);
     startTimerHz (15);
 }
 
@@ -620,7 +652,7 @@ void BLETonesAudioProcessorEditor::paintSoundStatsPanel (juce::Graphics& g, int 
     const float px = (float) (W - kPanelMargin - kRightPanelW);
     const float py = (float) kPanelMargin;
     const float pw = (float) kRightPanelW;
-    const float ph = 210.0f;
+    const float ph = 240.0f;  // Increased height for new Voice row
     const juce::Rectangle<float> panel (px, py, pw, ph);
 
     // Colors based on mode
@@ -682,6 +714,18 @@ void BLETonesAudioProcessorEditor::paintSoundStatsPanel (juce::Graphics& g, int 
         const auto& names  = BLETonesAudioProcessor::getScaleNames();
         drawStatRow ("Scale:", names[juce::jlimit (0, names.size() - 1, scaleIdx)]);
     }
+
+    // Current voice type display (new)
+    {
+        const int voiceIdx = static_cast<int> (*audioProcessor.apvts.getRawParameterValue ("voiceType"));
+        const auto& names  = BLETonesAudioProcessor::getVoiceTypeNames();
+        // Shorten the display name for stats panel
+        juce::String voiceName = names[juce::jlimit (0, names.size() - 1, voiceIdx)];
+        // Remove the parenthetical part for compact display
+        if (voiceName.contains ("("))
+            voiceName = voiceName.upToFirstOccurrenceOf (" (", false, true);
+        drawStatRow ("Voice:", voiceName);
+    }
 }
 
 //==============================================================================
@@ -722,13 +766,13 @@ void BLETonesAudioProcessorEditor::resized()
     const int centerX = kPanelMargin + kLeftPanelW + kPanelMargin;
     const int centerW = W - centerX - kRightPanelW - kPanelMargin * 2;
 
-    // Position controls in the lower-center area
-    const int sliderAreaY = (int) ((float) H * 0.60f);
+    // Position controls in the lower-center area (adjusted for more controls)
+    const int sliderAreaY = (int) ((float) H * 0.52f);
     const int ctrlW = std::min (centerW - 20, 320);
     const int ctrlX = centerX + (centerW - ctrlW) / 2;
     constexpr int kLabelW = 90;
     constexpr int kRowH   = 28;
-    constexpr int kGap    = 8;
+    constexpr int kGap    = 6;  // Reduced gap to fit more controls
 
     auto makeRow = [&] (int y) {
         return juce::Rectangle<int> (ctrlX, y, ctrlW, kRowH);
@@ -738,6 +782,12 @@ void BLETonesAudioProcessorEditor::resized()
 
     // Halloween Mode toggle row (centered)
     halloweenToggle.setBounds (ctrlX + (ctrlW - 180) / 2, y, 180, kRowH);
+    y += kRowH + kGap;
+
+    // Voice Type combo row (new - prominently placed)
+    auto voiceRow = makeRow (y);
+    voiceTypeLabel.setBounds (voiceRow.removeFromLeft (kLabelW));
+    voiceTypeCombo.setBounds (voiceRow);
     y += kRowH + kGap;
 
     // Key combo row
@@ -762,6 +812,18 @@ void BLETonesAudioProcessorEditor::resized()
     auto senRow = makeRow (y);
     sensitivityLabel.setBounds (senRow.removeFromLeft (kLabelW));
     sensitivitySlider.setBounds (senRow);
+    y += kRowH + kGap;
+
+    // Attack Time slider row (new)
+    auto atkRow = makeRow (y);
+    attackLabel.setBounds (atkRow.removeFromLeft (kLabelW));
+    attackSlider.setBounds (atkRow);
+    y += kRowH + kGap;
+
+    // Release Time slider row (new)
+    auto relRow = makeRow (y);
+    releaseLabel.setBounds (relRow.removeFromLeft (kLabelW));
+    releaseSlider.setBounds (relRow);
 
     // Regenerate network nodes if window was resized
     generateNetNodes (W, H);

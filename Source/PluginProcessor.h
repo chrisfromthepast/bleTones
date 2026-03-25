@@ -25,6 +25,15 @@ struct BLEDevice
  *
  * Up to 32 simultaneous polyphonic voices with attack/decay envelopes,
  * multi-oscillator synthesis, and reverb for a spacious, musical result.
+ * 
+ * Voice Types (matching Electron app flavors):
+ * - Pad: Slow attack, long sustain (like Enya/Choir)
+ * - Pluck: Quick attack, medium decay (like Celtic Harp)
+ * - Bell: Quick attack, long shimmering ring (like Vibraphone)
+ * - Drone: Very slow attack, very long sustain (ambient)
+ * - Flute: Breathy with vibrato (Native Flute style)
+ * - Keys: Soft attack, warm piano-like
+ * - Guitar: Quick pluck, medium sustain
  */
 class BLETonesAudioProcessor : public juce::AudioProcessor,
                                 public juce::OSCReceiver::Listener<
@@ -103,6 +112,25 @@ public:
     /** Returns the interval array and its length for a given ScaleType. */
     static const int* getScaleIntervals (ScaleType type, int& outLength);
 
+    //==========================================================================
+    // ── Voice Type definitions (matching the Electron app flavors) ───────────
+
+    /** All available voice / instrument types. */
+    enum VoiceType
+    {
+        VoicePad = 0,      // Slow attack, long sustain (Enya/Choir Pad)
+        VoicePluck,        // Quick attack, medium decay (Celtic Harp)
+        VoiceBell,         // Quick attack, long ring (Vibraphone)
+        VoiceDrone,        // Very slow attack, very long sustain
+        VoiceFlute,        // Breathy with vibrato
+        VoiceKeys,         // Soft attack, warm piano-like
+        VoiceGuitar,       // Quick pluck, medium sustain
+        NumVoiceTypes
+    };
+
+    /** Human-readable names for each voice type. */
+    static const juce::StringArray& getVoiceTypeNames();
+
     juce::AudioProcessorValueTreeState apvts;
 
     /** Returns true if Halloween mode is currently enabled. */
@@ -156,6 +184,8 @@ private:
         float  amplitude;
         float  pan;
         float  decaySec;
+        float  attackSec;   // Attack time in seconds
+        int    voiceType;   // VoiceType enum value
     };
 
     std::vector<PendingNote> pendingNotes;
@@ -177,6 +207,7 @@ private:
         double phase2      { 0.0 };     // Detuned sine oscillator
         double phaseSub    { 0.0 };     // Sub oscillator (octave below)
         double phaseTrem   { 0.0 };     // Tremolo LFO phase (Halloween mode)
+        double phaseVibrato { 0.0 };    // Vibrato LFO phase (Flute voice)
         double frequency   { 440.0 };
         float  amplitude   { 0.0f };    // Peak amplitude
         float  envelope    { 0.0f };    // Current envelope level (0–1)
@@ -188,6 +219,20 @@ private:
         float  filterCoef  { 0.3f };    // LP filter coefficient
         float  tremRate    { 5.0f };    // Tremolo rate Hz (Halloween mode)
         float  tremDepth   { 0.0f };    // Tremolo depth 0-1 (Halloween mode)
+        
+        // ADSR envelope support (matching Electron app's longer, more ambient envelopes)
+        enum EnvStage { Attack, Sustain, Release };
+        EnvStage envStage   { Attack };
+        float  attackRate   { 0.001f }; // Per-sample attack increment
+        float  sustainLevel { 1.0f };   // Sustain level (0-1)
+        float  sustainTime  { 0.0f };   // Time to hold sustain (samples remaining)
+        
+        // Voice type specific parameters
+        int    voiceType    { 0 };      // VoiceType enum
+        float  vibratoRate  { 5.0f };   // Vibrato rate Hz (for Flute voice)
+        float  vibratoDepth { 0.0f };   // Vibrato depth in Hz (for Flute voice)
+        float  harmonicMix  { 0.0f };   // Additional harmonic content (for Bell voice)
+        float  phase3       { 0.0 };    // Third oscillator phase (for rich voices)
     };
 
     static constexpr int kMaxVoices = 32;

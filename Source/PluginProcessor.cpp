@@ -78,6 +78,7 @@ static constexpr int   kDetuneHashRange   = 50;      // Hash range for per-voice
 static constexpr float kDetuneStep        = 0.0001f; // Per-hash-unit detune (total range 0.001–0.006)
 static constexpr float kInitialDelta      = 0.15f;   // Synthetic delta for first-sighting trigger
 static constexpr int   kHeartbeatMs       = 3000;    // Trigger a soft note if idle for this long
+static constexpr float kHeartbeatAmpFactor= 0.6f;    // Heartbeat notes are softer (60% of initial)
 
 //==============================================================================
 juce::AudioProcessorValueTreeState::ParameterLayout
@@ -332,15 +333,16 @@ void BLETonesAudioProcessor::oscMessageReceived (const juce::OSCMessage& msg)
         // Determine if we should trigger:
         // 1. New device → always trigger with initial delta
         // 2. Movement detected → trigger if delta exceeds threshold
-        // 3. Heartbeat → trigger a soft note if device has been idle too long
+        // 3. Heartbeat → trigger a soft note if device has been idle too long (only if no movement)
         const bool movementTrigger = (delta > threshold) && (now - ds.lastTriggeredMs) > kMinStrikeMs;
-        const bool heartbeatTrigger = (now - ds.lastTriggeredMs) > kHeartbeatMs;
+        // Heartbeat only fires if there's no movement trigger (to avoid duplicates)
+        const bool heartbeatTrigger = !movementTrigger && (now - ds.lastTriggeredMs) > kHeartbeatMs;
 
         if (isNewDevice || movementTrigger || heartbeatTrigger)
         {
             // Use a softer delta for heartbeat to create ambient background
-            const float effectiveDelta = heartbeatTrigger && !isNewDevice && !movementTrigger
-                                       ? kInitialDelta * 0.6f
+            const float effectiveDelta = heartbeatTrigger && !isNewDevice
+                                       ? kInitialDelta * kHeartbeatAmpFactor
                                        : delta;
             triggerNotesForDevice (name, normRssi, effectiveDelta);
             ds.lastTriggeredMs = now;

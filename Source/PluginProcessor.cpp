@@ -164,7 +164,9 @@ BLETonesAudioProcessor::BLETonesAudioProcessor()
       apvts (*this, nullptr, "Parameters", createParameterLayout())
 {
     if (! oscReceiver.connect (kOSCPort))
+    {
         DBG ("bleTones: failed to bind OSC receiver on port " << kOSCPort);
+    }
 
     oscReceiver.addListener (this);
 
@@ -486,10 +488,10 @@ void BLETonesAudioProcessor::triggerNotesForDevice (const juce::String& id,
 void BLETonesAudioProcessor::activateVoice (const PendingNote& note)
 {
     // Find a free voice, or steal the quietest one
-    int bestIdx     = 0;
+    size_t bestIdx  = 0;
     float quietest  = 2.0f;
 
-    for (int i = 0; i < kMaxVoices; ++i)
+    for (size_t i = 0; i < kMaxVoices; ++i)
     {
         if (! voices[i].active)
         {
@@ -575,7 +577,8 @@ void BLETonesAudioProcessor::activateVoice (const PendingNote& note)
             v.sustainLevel = 0.55f;
             sustainTimeSec = note.decaySec * 0.15f;
             break;
-            
+
+        case NumVoiceTypes:
         default:
             v.sustainLevel = 0.8f;
             sustainTimeSec = note.decaySec * 0.3f;
@@ -620,6 +623,11 @@ void BLETonesAudioProcessor::activateVoice (const PendingNote& note)
                 // Minimal detuning for purer tone
                 v.detuneRatio = 1.0005f;
                 break;
+            case VoicePluck:
+            case VoiceDrone:
+            case VoiceKeys:
+            case VoiceGuitar:
+            case NumVoiceTypes:
             default:
                 v.detuneRatio = 1.001f + (float) (hashName (juce::String (note.frequency)) % kDetuneHashRange) * kDetuneStep;
                 break;
@@ -643,6 +651,9 @@ void BLETonesAudioProcessor::activateVoice (const PendingNote& note)
         case VoicePluck:
             subBase = 0.25f;  // Moderate sub for plucked
             break;
+        case VoicePad:
+        case VoiceKeys:
+        case NumVoiceTypes:
         default:
             break;
     }
@@ -673,6 +684,10 @@ void BLETonesAudioProcessor::activateVoice (const PendingNote& note)
                 filterMin = 0.2f;
                 filterMax = 0.7f;
                 break;
+            case VoicePluck:
+            case VoiceKeys:
+            case VoiceGuitar:
+            case NumVoiceTypes:
             default:
                 filterMin = 0.15f;
                 filterMax = 0.6f;
@@ -854,7 +869,8 @@ void BLETonesAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
                             + static_cast<float> (std::sin (v.phase3)) * 0.15f * guitarDecay;
                     }
                     break;
-                    
+
+                case NumVoiceTypes:
                 default:
                     sig = static_cast<float> (std::sin (v.phase1)) * 0.45f
                         + static_cast<float> (std::sin (v.phase2)) * 0.30f

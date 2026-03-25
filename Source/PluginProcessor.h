@@ -52,6 +52,7 @@ public:
    #endif
 
     void processBlock (juce::AudioBuffer<float>&, juce::MidiBuffer&) override;
+    using juce::AudioProcessor::processBlock;  // Expose double version
 
     //==========================================================================
     juce::AudioProcessorEditor* createEditor() override;

@@ -457,7 +457,7 @@ void BLETonesAudioProcessorEditor::paintBLEScannerPanel (juce::Graphics& g, int 
     // Header: "BLE Scanner" or "Ghost Scanner" for Halloween
     const float hdrY = py + 14.0f;
     g.setColour (accent);
-    g.setFont (juce::Font (15.0f).boldened());
+    g.setFont (juce::Font (juce::FontOptions (15.0f, juce::Font::bold)));
     g.drawText (cachedHalloweenMode ? "Ghost Scanner" : "BLE Scanner",
                 (int) (px + 14), (int) hdrY, (int) pw - 28, 22,
                 juce::Justification::centredLeft);
@@ -471,7 +471,7 @@ void BLETonesAudioProcessorEditor::paintBLEScannerPanel (juce::Graphics& g, int 
     g.fillEllipse (px + 16.0f, statusY + 4.0f, 7.0f, 7.0f);
 
     g.setColour (muted);
-    g.setFont (juce::Font (11.5f));
+    g.setFont (juce::Font (juce::FontOptions (11.5f)));
     g.drawText (cachedHalloweenMode ? "Detecting spirits..." : "Listening on UDP 9000...",
                 (int) (px + 28), (int) statusY, (int) pw - 44, 16,
                 juce::Justification::centredLeft);
@@ -489,7 +489,7 @@ void BLETonesAudioProcessorEditor::paintBLEScannerPanel (juce::Graphics& g, int 
     {
         const float waitAlpha = 0.35f + 0.25f * (0.5f + 0.5f * std::sin (animPhase * 1.2f));
         g.setColour (muted.withAlpha (waitAlpha));
-        g.setFont (juce::Font (12.0f));
+        g.setFont (juce::Font (juce::FontOptions (12.0f)));
         g.drawFittedText (cachedHalloweenMode ? "Waiting for apparitions..." : "Waiting for devices...",
                           (int) (px + 14), (int) rowY0, (int) pw - 28, 60,
                           juce::Justification::centred, 2);
@@ -504,14 +504,14 @@ void BLETonesAudioProcessorEditor::paintBLEScannerPanel (juce::Graphics& g, int 
 
             // Device name
             g.setColour (kColTextLight);
-            g.setFont (juce::Font (12.0f));
+            g.setFont (juce::Font (juce::FontOptions (12.0f)));
             g.drawText (dev.name,
                         (int) (px + 16), (int) rowY, 150, (int) kRowH,
                         juce::Justification::centredLeft, true);
 
             // RSSI value (right-aligned, monospace)
             g.setColour (accent);
-            g.setFont (juce::Font (juce::Font::getDefaultMonospacedFontName(), 11.5f, 0));
+            g.setFont (juce::Font (juce::FontOptions (juce::Font::getDefaultMonospacedFontName(), 11.5f, 0)));
             g.drawText (juce::String (dev.rssi) + "  dBm",
                         (int) (px + pw - 90), (int) rowY, 76, (int) kRowH,
                         juce::Justification::centredRight);
@@ -526,7 +526,7 @@ void BLETonesAudioProcessorEditor::paintBLEScannerPanel (juce::Graphics& g, int 
     if (! cachedDevices.empty())
     {
         g.setColour (status.withAlpha (0.85f));
-        g.setFont (juce::Font (10.5f));
+        g.setFont (juce::Font (juce::FontOptions (10.5f)));
         g.drawFittedText (cachedHalloweenMode 
                               ? "Paranormal activity detected!" 
                               : "Receiving BLE data - detecting nearby devices!",
@@ -537,7 +537,7 @@ void BLETonesAudioProcessorEditor::paintBLEScannerPanel (juce::Graphics& g, int 
     else
     {
         g.setColour (muted.withAlpha (0.5f));
-        g.setFont (juce::Font (10.5f));
+        g.setFont (juce::Font (juce::FontOptions (10.5f)));
         g.drawFittedText ("Launch bleTones Helper to begin scanning",
                           (int) (px + 12), (int) (bottomMsgY + 6),
                           (int) pw - 24, 36,
@@ -585,21 +585,21 @@ void BLETonesAudioProcessorEditor::paintCenterContent (juce::Graphics& g, int W,
 
     // Glow pass
     g.setColour (titleCol.withAlpha (0.06f));
-    g.setFont (juce::Font (52.0f).withExtraKerningFactor (0.25f));
+    g.setFont (juce::Font (juce::FontOptions (52.0f)).withExtraKerningFactor (0.25f));
     g.drawFittedText (titleText,
                       centerX, (int) (titleY - 4), centerW, 60,
                       juce::Justification::centred, 1);
 
     // Main title
     g.setColour (titleCol);
-    g.setFont (juce::Font (48.0f).withExtraKerningFactor (0.25f));
+    g.setFont (juce::Font (juce::FontOptions (48.0f)).withExtraKerningFactor (0.25f));
     g.drawFittedText (titleText,
                       centerX, (int) titleY, centerW, 56,
                       juce::Justification::centred, 1);
 
     // ── Subtitle ─────────────────────────────────────────────────────────────
     g.setColour (muted);
-    g.setFont (juce::Font (10.0f).withExtraKerningFactor (0.22f));
+    g.setFont (juce::Font (juce::FontOptions (10.0f)).withExtraKerningFactor (0.22f));
     g.drawFittedText (cachedHalloweenMode 
                           ? "S P O O K Y   S O U N D   E X P E R I E N C E" 
                           : "GENERATIVE  SOUND  EXPERIENCE",
@@ -623,7 +623,7 @@ void BLETonesAudioProcessorEditor::paintCenterContent (juce::Graphics& g, int W,
 
         const float playPulse = 0.7f + 0.3f * (0.5f + 0.5f * std::sin (animPhase * 1.5f));
         g.setColour (titleCol.withAlpha (playPulse));
-        g.setFont (juce::Font (14.0f).withExtraKerningFactor (0.15f).boldened());
+        g.setFont (juce::Font (juce::FontOptions (14.0f, juce::Font::bold)).withExtraKerningFactor (0.15f));
         g.drawFittedText (cachedHalloweenMode ? "HAUNTING..." : "PLAYING...",
                           (int) statusX, (int) statusY, (int) statusW, (int) statusH,
                           juce::Justification::centred, 1);
@@ -637,7 +637,7 @@ void BLETonesAudioProcessorEditor::paintCenterContent (juce::Graphics& g, int W,
         g.drawRoundedRectangle (statusX, statusY, statusW, statusH, statusH / 2.0f, 1.0f);
 
         g.setColour (muted.withAlpha (0.6f));
-        g.setFont (juce::Font (14.0f).withExtraKerningFactor (0.15f));
+        g.setFont (juce::Font (juce::FontOptions (14.0f)).withExtraKerningFactor (0.15f));
         g.drawFittedText (cachedHalloweenMode ? "DORMANT" : "IDLE",
                           (int) statusX, (int) statusY, (int) statusW, (int) statusH,
                           juce::Justification::centred, 1);
@@ -668,7 +668,7 @@ void BLETonesAudioProcessorEditor::paintSoundStatsPanel (juce::Graphics& g, int 
 
     // Header
     g.setColour (kColTextLight);
-    g.setFont (juce::Font (14.0f).boldened());
+    g.setFont (juce::Font (juce::FontOptions (14.0f, juce::Font::bold)));
     g.drawText (cachedHalloweenMode ? "Spooky Stats" : "Sound Stats",
                 (int) (px + 14), (int) (py + 12), (int) pw - 28, 20,
                 juce::Justification::centredLeft);
@@ -686,12 +686,12 @@ void BLETonesAudioProcessorEditor::paintSoundStatsPanel (juce::Graphics& g, int 
     auto drawStatRow = [&] (const juce::String& label, const juce::String& value)
     {
         g.setColour (muted);
-        g.setFont (juce::Font (12.0f));
+        g.setFont (juce::Font (juce::FontOptions (12.0f)));
         g.drawText (label, (int) rowX, (int) rowY, 120, (int) rowH,
                     juce::Justification::centredLeft);
 
         g.setColour (kColTextLight);
-        g.setFont (juce::Font (juce::Font::getDefaultMonospacedFontName(), 13.0f, 0));
+        g.setFont (juce::Font (juce::FontOptions (juce::Font::getDefaultMonospacedFontName(), 13.0f, 0)));
         g.drawText (value, (int) rowX, (int) rowY, (int) (valX - rowX), (int) rowH,
                     juce::Justification::centredRight);
         rowY += rowH;
@@ -742,14 +742,14 @@ void BLETonesAudioProcessorEditor::paintBottomBar (juce::Graphics& g, int W, int
 
     // Info text
     g.setColour (muted.withAlpha (0.6f));
-    g.setFont (juce::Font (11.0f));
+    g.setFont (juce::Font (juce::FontOptions (11.0f)));
     g.drawFittedText (cachedHalloweenMode 
                           ? "Spirits manifest sounds as they drift through the airwaves..."
                           : "BLE devices generate sounds based on signal strength changes",
                       0, (int) barY + 10, W, 16, juce::Justification::centred, 1);
 
     g.setColour (muted.withAlpha (0.45f));
-    g.setFont (juce::Font (10.5f));
+    g.setFont (juce::Font (juce::FontOptions (10.5f)));
     g.drawFittedText ("Receives OSC from bleTones Helper on localhost:9000",
                       0, (int) barY + 30, W, 16, juce::Justification::centred, 1);
 }

@@ -753,6 +753,8 @@ void BLETonesAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
                     
                 case Voice::Sustain:
                     // Gradually approach sustain level during sustain phase
+                    // Uses exponential smoothing: env = 0.9999*env + 0.0001*target
+                    // At 44100 Hz, this smooths over ~4400 samples (~100ms) for natural feel
                     if (v.envelope > v.sustainLevel)
                         v.envelope = v.envelope * 0.9999f + v.sustainLevel * 0.0001f;
                     
@@ -803,6 +805,9 @@ void BLETonesAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
                     
                 case VoiceBell:
                     // Bell: inharmonic partials for shimmer
+                    // Ratios 2.76 and 1.51 approximate vibraphone bar modes (not integer harmonics)
+                    // creating the characteristic metallic bell timbre. Based on analysis of
+                    // struck bar instruments where partials are non-harmonic.
                     {
                         const float bellRing = 0.5f + 0.5f * v.envelope;  // Sustains shimmer
                         sig = static_cast<float> (std::sin (v.phase1)) * 0.45f
@@ -837,9 +842,13 @@ void BLETonesAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
                     
                 case VoiceGuitar:
                     // Clean guitar: triangle-ish wave with quick harmonic decay
+                    // Triangle wave formula: 2*|2*(phase/2pi) - 1| - 1 maps phase [0,2pi] to [-1,+1]
+                    // in a linear up-down shape that sounds brighter than sine
                     {
                         const float guitarDecay = v.envelope * v.envelope * v.envelope;
-                        const float tri = static_cast<float> (2.0 * std::abs (2.0 * (v.phase1 / twoPi) - 1.0) - 1.0);
+                        // Generate triangle wave from phase: linear ramp up then down
+                        const float normalizedPhase = static_cast<float> (v.phase1 / twoPi);
+                        const float tri = 2.0f * std::abs (2.0f * normalizedPhase - 1.0f) - 1.0f;
                         sig = tri * 0.40f
                             + static_cast<float> (std::sin (v.phase1)) * 0.30f
                             + static_cast<float> (std::sin (v.phase3)) * 0.15f * guitarDecay;

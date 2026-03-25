@@ -81,6 +81,11 @@ static constexpr float kInitialDelta      = 0.15f;   // Synthetic delta for firs
 static constexpr int   kHeartbeatMs       = 3000;    // Trigger a soft note if idle for this long
 static constexpr float kHeartbeatAmpFactor= 0.6f;    // Heartbeat notes are softer (60% of initial)
 
+// Named constants for harmonic decay multipliers (used in activateVoice)
+static constexpr float kHarmDecayHarp      = 2.5f;  // Celtic Harp: fast harmonic decay
+static constexpr float kHarmDecayGuitar    = 3.0f;  // Clean Guitar: very fast decay
+static constexpr float kHarmDecayKeys      = 4.0f;  // Warm Keys: fastest for bell overtone
+
 //==============================================================================
 // Voice Type names – matching the Electron app's instrument flavors
 //==============================================================================
@@ -665,7 +670,7 @@ void BLETonesAudioProcessor::activateVoice (const PendingNote& note)
             v.osc4Mix = 0.08f;  // 4th harmonic
             v.osc5Mix = 0.05f;  // 5th harmonic
             v.subMix = 0.0f;
-            v.harmDecayMult = 2.5f;  // Harmonics decay faster than fundamental
+            v.harmDecayMult = kHarmDecayHarp;  // Harmonics decay faster than fundamental
             v.filterCoef = juce::jlimit (0.3f, 0.8f, (float) note.frequency / 800.0f);
             break;
             
@@ -786,7 +791,7 @@ void BLETonesAudioProcessor::activateVoice (const PendingNote& note)
             v.osc4Mix = 0.0f;
             v.osc5Mix = 0.0f;
             v.subMix = 0.0f;
-            v.harmDecayMult = 3.0f;  // Fast harmonic decay
+            v.harmDecayMult = kHarmDecayGuitar;  // Fast harmonic decay
             // Filter sweep: starts bright, decays to mellow
             v.filterCoef = juce::jlimit (0.25f, 0.75f, (float) note.frequency / 600.0f);
             break;
@@ -809,7 +814,7 @@ void BLETonesAudioProcessor::activateVoice (const PendingNote& note)
             v.osc4Mix = 0.0f;
             v.osc5Mix = 0.0f;
             v.subMix = 0.08f;
-            v.harmDecayMult = 4.0f;  // Bell decays faster
+            v.harmDecayMult = kHarmDecayKeys;  // Bell decays faster
             v.filterCoef = juce::jlimit (0.15f, 0.55f, (float) note.frequency / 1000.0f);
             break;
             
@@ -946,26 +951,52 @@ void BLETonesAudioProcessor::activateVoice (const PendingNote& note)
 // processBlock – render polyphonic voices with envelopes + reverb
 //==============================================================================
 
+// Named constants for harmonic decay multipliers
 // Helper function to generate waveforms
+// Phase is expected to be in range [0, 2π) and properly wrapped by caller
 static inline float generateWaveform (double phase, int waveType, double twoPi)
 {
+    // Normalize phase to [0, 1)
+    const float t = static_cast<float> (phase / twoPi);
+    
     switch (waveType)
     {
         case 0:  // Sine
             return static_cast<float> (std::sin (phase));
+            
         case 1:  // Triangle
         {
-            const float normalizedPhase = static_cast<float> (phase / twoPi);
-            return 2.0f * std::abs (2.0f * normalizedPhase - 1.0f) - 1.0f;
+            // Triangle wave: rises linearly from -1 to +1 in first half,
+            // then falls from +1 to -1 in second half.
+            // Formula: 4 * |t - floor(t + 0.5)| - 1 for t in [0,1)
+            // Or equivalently: 1 - 4 * |0.5 - fmod(t, 1)|
+            const float triPhase = t - std::floor (t + 0.5f);
+            return 4.0f * std::abs (triPhase) - 1.0f;
         }
-        case 2:  // Sawtooth (band-limited approximation via filtered)
+        
+        case 2:  // Sawtooth
         {
-            const float normalizedPhase = static_cast<float> (phase / twoPi);
-            return 2.0f * normalizedPhase - 1.0f;
+            // Sawtooth: rises from -1 to +1 over the period
+            // Properly wrapped to avoid discontinuity at boundaries
+            const float sawPhase = t - std::floor (t);
+            return 2.0f * sawPhase - 1.0f;
         }
+        
         default:
             return static_cast<float> (std::sin (phase));
     }
+}
+
+// Fast approximation for pow(x, n) where n is a small integer
+// Much faster than std::pow in the audio loop
+static inline float fastPow (float x, float n)
+{
+    if (n <= 1.0f) return x;
+    if (n <= 2.0f) return x * x;
+    if (n <= 3.0f) return x * x * x;
+    if (n <= 4.0f) { float x2 = x * x; return x2 * x2; }
+    // Fallback for non-standard values
+    return std::pow (x, n);
 }
 
 void BLETonesAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
@@ -1065,7 +1096,8 @@ void BLETonesAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
             if (v.harmDecayMult > 1.0f)
             {
                 // Apply exponential decay multiplier to harmonics
-                harmEnv = std::pow (v.envelope, v.harmDecayMult);
+                // Using fastPow for performance in audio loop
+                harmEnv = fastPow (v.envelope, v.harmDecayMult);
             }
             
             // ── Generate oscillators with appropriate waveforms ──────────

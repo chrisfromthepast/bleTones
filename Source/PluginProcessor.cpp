@@ -70,13 +70,8 @@ const int* BLETonesAudioProcessor::getScaleIntervals (ScaleType type, int& outLe
 static constexpr int   kFallbackScaleLen  = 5;      // Fallback scale length (Minor Pentatonic) if lookup fails
 static constexpr int   kBaseDegreeOctaves = 3;      // Hash range spans this many scale-octaves
 static constexpr float kDeltaToAmpScale   = 6.0f;   // Movement delta → amplitude scaling
-// Decay times increased for more ambient, less staccato sound (matching Electron app)
-static constexpr float kMinDecaySec       = 3.0f;    // Shortest note decay (far devices) - was 1.5s
-static constexpr float kDecayRangeScale   = 5.0f;    // Additional decay for close devices (total max = 8.0 s)
 static constexpr int   kPanHashRange      = 140;     // Hash range for pan (mapped to −0.7…+0.7)
 static constexpr float kPanHashOffset     = 70.0f;   // Centre offset for pan hash
-static constexpr int   kDetuneHashRange   = 50;      // Hash range for per-voice random detune
-static constexpr float kDetuneStep        = 0.0001f; // Per-hash-unit detune (total range 0.001–0.006)
 static constexpr float kInitialDelta      = 0.15f;   // Synthetic delta for first-sighting trigger
 static constexpr int   kHeartbeatMs       = 3000;    // Trigger a soft note if idle for this long
 static constexpr float kHeartbeatAmpFactor= 0.6f;    // Heartbeat notes are softer (60% of initial)

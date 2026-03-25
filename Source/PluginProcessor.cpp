@@ -143,6 +143,7 @@ std::vector<int> BLETonesAudioProcessor::getEnsembleInstruments (int ensembleTyp
         case EnsembleChamber:
             return { InstSoftString, InstCelticHarp, InstVibraphone };
         case EnsembleMinimal:
+        case NumEnsembles:
         default:
             return { InstChoirPad, InstLowDrone };
     }
@@ -915,7 +916,7 @@ void BLETonesAudioProcessor::activateVoice (const PendingNote& note)
             v.filterCoef = juce::jlimit (0.40f, 0.90f, (float) note.frequency / 500.0f);
             break;
 
-        case NumVoiceTypes:
+        case NumInstruments:
         default:
             // Fallback to soft pad
             v.sustainLevel = 0.75f;

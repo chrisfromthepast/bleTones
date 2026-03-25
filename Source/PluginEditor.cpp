@@ -239,17 +239,17 @@ BLETonesAudioProcessorEditor::BLETonesAudioProcessorEditor (BLETonesAudioProcess
     halloweenAttachment = std::make_unique<juce::AudioProcessorValueTreeState::ButtonAttachment> (
         p.apvts, "halloweenMode", halloweenToggle);
 
-    // Voice Type combo box (new - matching Electron app's flavors)
-    voiceTypeLabel.setText ("Voice Type", juce::dontSendNotification);
+    // Ensemble combo box (curated instrument combinations)
+    voiceTypeLabel.setText ("Ensemble", juce::dontSendNotification);
     addAndMakeVisible (voiceTypeLabel);
     {
-        const auto& names = BLETonesAudioProcessor::getVoiceTypeNames();
+        const auto& names = BLETonesAudioProcessor::getEnsembleNames();
         for (int i = 0; i < names.size(); ++i)
             voiceTypeCombo.addItem (names[i], i + 1);  // ComboBox IDs are 1-based
     }
     addAndMakeVisible (voiceTypeCombo);
     voiceTypeAttachment = std::make_unique<juce::AudioProcessorValueTreeState::ComboBoxAttachment> (
-        p.apvts, "voiceType", voiceTypeCombo);
+        p.apvts, "ensembleType", voiceTypeCombo);
 
     // Volume slider
     volumeLabel.setText ("Volume", juce::dontSendNotification);
@@ -715,16 +715,16 @@ void BLETonesAudioProcessorEditor::paintSoundStatsPanel (juce::Graphics& g, int 
         drawStatRow ("Scale:", names[juce::jlimit (0, names.size() - 1, scaleIdx)]);
     }
 
-    // Current voice type display (new)
+    // Current ensemble display
     {
-        const int voiceIdx = static_cast<int> (*audioProcessor.apvts.getRawParameterValue ("voiceType"));
-        const auto& names  = BLETonesAudioProcessor::getVoiceTypeNames();
+        const int ensembleIdx = static_cast<int> (*audioProcessor.apvts.getRawParameterValue ("ensembleType"));
+        const auto& names = BLETonesAudioProcessor::getEnsembleNames();
         // Shorten the display name for stats panel
-        juce::String voiceName = names[juce::jlimit (0, names.size() - 1, voiceIdx)];
+        juce::String ensembleName = names[juce::jlimit (0, names.size() - 1, ensembleIdx)];
         // Remove the parenthetical part for compact display
-        if (voiceName.contains ("("))
-            voiceName = voiceName.upToFirstOccurrenceOf (" (", false, true);
-        drawStatRow ("Voice:", voiceName);
+        if (ensembleName.contains ("("))
+            ensembleName = ensembleName.upToFirstOccurrenceOf (" (", false, true);
+        drawStatRow ("Ensemble:", ensembleName);
     }
 }
 

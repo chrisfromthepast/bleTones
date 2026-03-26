@@ -88,12 +88,12 @@ const juce::StringArray& BLETonesAudioProcessor::getEnsembleNames()
 {
     static const juce::StringArray names
     {
-        "Melodic (Enya)",      // Choir Pad + Celtic Harp + Soft String
-        "Ambient (Flute)",     // Native Flute + Low Drone + Wind Pad
-        "Ethereal (Jazz)",     // Clean Guitar + Warm Keys + Shimmer Chorus
-        "Percussive (Mallet)", // Vibraphone + Marimba + Glockenspiel
-        "Chamber (Classical)", // Strings + Harp + Bells
-        "Minimal (Pure)"       // Pure sine drones + soft pads
+        "Choral",    // Choir Pad + Celtic Harp + Soft String
+        "Airy",      // Native Flute + Low Drone + Wind Pad
+        "Shimmer",   // Clean Guitar + Warm Keys + Shimmer Chorus
+        "Bells",     // Vibraphone + Marimba + Glockenspiel
+        "Strings",   // Soft String + Harp + Vibraphone
+        "Drone"      // Choir Pad + Low Drone
     };
     return names;
 }
@@ -183,7 +183,7 @@ juce::AudioProcessorValueTreeState::ParameterLayout
         "ensembleType",
         "Ensemble",
         getEnsembleNames(),
-        0));  // Default: Melodic (Enya)
+        0));  // Default: Choral
 
     // Attack time control (0.01s to 2.0s) - allows user to control how fast notes fade in
     layout.add (std::make_unique<juce::AudioParameterFloat> (

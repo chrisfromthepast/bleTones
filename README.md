@@ -213,7 +213,7 @@ within a second or two.
 | BLE Sensitivity | 0 – 1 | 0.5 | Scales RSSI → amplitude mapping |
 | Root Note | 0 – 127 | 60 (C4) | MIDI root note for scale mapping |
 | Scale / Mode | 10 choices | Minor Pentatonic | Musical scale for pitch mapping |
-| Ensemble | 6 choices | Melodic (Enya) | Curated instrument combinations |
+| Ensemble | 6 choices | Choral | Curated instrument combinations |
 | Attack Time | 0.01 – 2.0s | 0.4s | How fast notes fade in |
 | Release Time | 0.5 – 12.0s | 6.0s | How long notes ring out |
 | Halloween Mode | on/off | off | Spooky reverb and tremolo effects |
@@ -224,12 +224,12 @@ bleTones features a **curated ensemble system** where each selection plays multi
 
 | Ensemble | Instruments | Character |
 |----------|-------------|-----------|
-| **Melodic (Enya)** | Choir Pad + Celtic Harp + Soft String | Layered, warm, ethereal pads with plucked accents |
-| **Ambient (Flute)** | Native Flute + Low Drone + Wind Pad | Breathy, nature-inspired, grounding |
-| **Ethereal (Jazz)** | Clean Guitar + Warm Keys + Shimmer Chorus | Indie jazz vibes, shimmery, bright |
-| **Percussive (Mallet)** | Vibraphone + Marimba + Glockenspiel | Metallic, bell-like, rhythmic |
-| **Chamber (Classical)** | Strings + Harp + Vibraphone | Classical ensemble feel |
-| **Minimal (Pure)** | Choir Pad + Low Drone | Simple, pure, meditative |
+| **Choral** | Choir Pad + Celtic Harp + Soft String | Thick layered chorus with plucked accents |
+| **Airy** | Native Flute + Low Drone + Wind Pad | Breathy, floating, spacious |
+| **Shimmer** | Clean Guitar + Warm Keys + Shimmer Chorus | Bright, sparkly, detuned textures |
+| **Bells** | Vibraphone + Marimba + Glockenspiel | Struck metallic and wooden tones |
+| **Strings** | Soft String + Harp + Vibraphone | Sustained bowed and plucked blend |
+| **Drone** | Choir Pad + Low Drone | Deep sustained tones |
 
 Each of the **12 distinct instruments** has its own unique:
 - **Oscillator recipe**: Specific waveform combinations (sine, triangle, sawtooth)

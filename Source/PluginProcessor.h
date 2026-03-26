@@ -123,12 +123,12 @@ public:
      */
     enum EnsembleType
     {
-        EnsembleMelodic = 0,   // Enya-style: Choir Pad + Celtic Harp + Soft String
-        EnsembleAmbient,       // Nature: Native Flute + Low Drone + Wind Pad
-        EnsembleEthereal,      // Indie/Jazz: Clean Guitar + Warm Keys + Shimmer Chorus
-        EnsemblePercussive,    // Mallet: Vibraphone + Marimba + Glockenspiel
-        EnsembleChamber,       // Classical: Strings + Harp + Bells
-        EnsembleMinimal,       // Simple: Pure sine drones + soft pads
+        EnsembleMelodic = 0,   // Choral: Choir Pad + Celtic Harp + Soft String
+        EnsembleAmbient,       // Airy: Native Flute + Low Drone + Wind Pad
+        EnsembleEthereal,      // Shimmer: Clean Guitar + Warm Keys + Shimmer Chorus
+        EnsemblePercussive,    // Bells: Vibraphone + Marimba + Glockenspiel
+        EnsembleChamber,       // Strings: Soft String + Harp + Vibraphone
+        EnsembleMinimal,       // Drone: Choir Pad + Low Drone
         NumEnsembles
     };
 

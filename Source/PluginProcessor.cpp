@@ -929,12 +929,147 @@ void BLETonesAudioProcessor::activateVoice (const PendingNote& note)
             v.filterCoef = 0.3f;
             break;
     }
-    
+
+    // ══════════════════════════════════════════════════════════════════════════
+    // HALLOWEEN SPOOKY SOUND OVERRIDES
+    // When Halloween mode is active, replace instrument timbres with
+    // truly eerie sounds: theremin wails, haunted organ, ghost moans,
+    // death bells.  Each original instrument maps to one of 4 spooky types.
+    // ══════════════════════════════════════════════════════════════════════════
+    if (halloween)
+    {
+        const int spookyType = note.instrumentType % 4;
+
+        switch (spookyType)
+        {
+            case 0:  // ── Theremin Wail ──────────────────────────────────
+                // Classic horror theremin: pure sine with wide, slow vibrato
+                // creating an eerie, wobbling pitch effect
+                v.waveType1 = 0;  // sine
+                v.waveType2 = 0;
+                v.waveType3 = 0;
+                v.osc1Mix = 0.60f;
+                v.osc2Mix = 0.20f;
+                v.osc3Mix = 0.0f;
+                v.osc4Mix = 0.0f;
+                v.osc5Mix = 0.0f;
+                v.subMix = 0.15f;
+                v.detuneRatio1 = 1.0f;
+                v.detuneRatio2 = 0.5f;  // Sub-octave
+                v.harmonicRatio1 = 1.0f;
+                v.harmonicRatio2 = 0.5f;
+                // Wide, slow vibrato – the signature theremin wobble
+                v.vibratoRate = 2.5f + (float) (freqHash % 15) * 0.1f;
+                v.vibratoDepth = (float) note.frequency * 0.05f;  // ±5% pitch
+                // Strong tremolo for ghostly pulsation
+                v.tremRate = 4.0f + (float) (freqHash % 10) * 0.2f;
+                v.tremDepth = 0.40f;
+                v.sustainLevel = 0.90f;
+                sustainTimeSec = note.decaySec * 0.55f;
+                v.filterCoef = 0.45f;
+                v.filterCoef2 = 0.95f;  // Bypass second filter
+                v.harmDecayMult = 1.0f;
+                break;
+
+            case 1:  // ── Haunted Organ ──────────────────────────────────
+                // Deep, dissonant pipe organ with tritone and detuned stops
+                // Sawtooth waves for rich harmonic content, dark filtering
+                v.waveType1 = 2;  // sawtooth
+                v.waveType2 = 2;  // sawtooth (detuned)
+                v.waveType3 = 1;  // triangle
+                v.osc1Mix = 0.25f;
+                v.osc2Mix = 0.20f;
+                v.osc3Mix = 0.18f;
+                v.osc4Mix = 0.12f;  // Tritone partial
+                v.osc5Mix = 0.10f;  // Octave below
+                v.subMix = 0.30f;   // Heavy sub-bass for ominous depth
+                // Organ stops: fundamental, detuned second, tritone, sub
+                v.detuneRatio1 = 1.007f;   // Detuned unison for beating
+                v.detuneRatio2 = 0.993f;   // Other side of detune
+                v.harmonicRatio1 = 1.4142f; // Tritone (sqrt(2))
+                v.harmonicRatio2 = 0.5f;    // Sub-octave
+                v.vibratoRate = 0.8f + (float) (freqHash % 10) * 0.05f;
+                v.vibratoDepth = (float) note.frequency * 0.008f;
+                v.tremRate = 3.5f;
+                v.tremDepth = 0.25f;
+                v.sustainLevel = 0.88f;
+                sustainTimeSec = note.decaySec * 0.60f;
+                // Very dark filtering for cavernous organ sound
+                v.filterCoef = juce::jlimit (0.05f, 0.20f,
+                    (float) note.frequency / 2500.0f);
+                v.filterCoef2 = 0.3f;  // Extra dark with second filter
+                v.harmDecayMult = 1.0f;
+                break;
+
+            case 2:  // ── Ghost Moan / Spectral Wail ────────────────────
+                // Extremely wide chorus with vowel-like filtering
+                // 5 oscillators spread ±20 cents for thick, moaning texture
+                v.waveType1 = 0;  // sine
+                v.waveType2 = 1;  // triangle
+                v.waveType3 = 0;  // sine
+                v.osc1Mix = 0.22f;
+                v.osc2Mix = 0.20f;
+                v.osc3Mix = 0.18f;
+                v.osc4Mix = 0.16f;
+                v.osc5Mix = 0.14f;
+                v.subMix = 0.10f;
+                // Very wide detuning for spectral chorus (moaning quality)
+                v.detuneRatio1 = 1.0f + 20.0f / 1200.0f;  // +20 cents
+                v.detuneRatio2 = 1.0f - 20.0f / 1200.0f;  // -20 cents
+                v.harmonicRatio1 = 1.0f + 35.0f / 1200.0f; // +35 cents
+                v.harmonicRatio2 = 1.0f - 35.0f / 1200.0f; // -35 cents
+                // Slow, deep vibrato for moaning pitch sweep
+                v.vibratoRate = 1.2f + (float) (freqHash % 8) * 0.1f;
+                v.vibratoDepth = (float) note.frequency * 0.035f;  // ±3.5%
+                v.tremRate = 2.0f;
+                v.tremDepth = 0.20f;
+                v.sustainLevel = 0.85f;
+                sustainTimeSec = note.decaySec * 0.50f;
+                // Vowel-like formant filtering
+                v.filterCoef = juce::jlimit (0.08f, 0.30f,
+                    (float) note.frequency / 1800.0f);
+                v.filterCoef2 = 0.55f;  // Formant character
+                v.harmDecayMult = 1.0f;
+                break;
+
+            case 3:  // ── Death Bell / Funeral Gong ──────────────────────
+                // Deep, resonant bell with inharmonic beating partials
+                // Very long decay, sub-octave drone, metallic shimmer
+                v.waveType1 = 0;  // sine
+                v.waveType2 = 0;  // sine
+                v.waveType3 = 0;  // sine
+                v.osc1Mix = 0.40f;
+                v.osc2Mix = 0.20f;
+                v.osc3Mix = 0.15f;
+                v.osc4Mix = 0.10f;
+                v.osc5Mix = 0.05f;
+                v.subMix = 0.20f;  // Deep sub for ominous weight
+                // Inharmonic partials for metallic, bell-like quality
+                v.detuneRatio1 = 1.4142f;  // Tritone beating
+                v.detuneRatio2 = 2.76f;    // Inharmonic partial
+                v.harmonicRatio1 = 4.17f;  // High inharmonic
+                v.harmonicRatio2 = 0.5f;   // Sub-octave
+                v.vibratoRate = 0.4f;
+                v.vibratoDepth = (float) note.frequency * 0.003f;
+                // Slow tremolo for eerie pulsation
+                v.tremRate = 1.5f + (float) (freqHash % 8) * 0.15f;
+                v.tremDepth = 0.30f;
+                v.sustainLevel = 0.70f;
+                sustainTimeSec = note.decaySec * 0.35f;
+                v.filterCoef = juce::jlimit (0.15f, 0.50f,
+                    (float) note.frequency / 800.0f);
+                v.filterCoef2 = 0.95f;  // Bypass second filter
+                // Harmonics decay very slowly for long, ringing quality
+                v.harmDecayMult = 1.3f;
+                break;
+        }
+    }
+
     v.sustainTime = static_cast<float> (sampleRate * sustainTimeSec);
     
     // Calculate release/decay rate
-    // Halloween mode: longer decay for spookier, more sustained sounds
-    const float decayMultiplier = halloween ? 1.6f : 1.0f;
+    // Halloween mode: much longer decay for spookier, more sustained sounds
+    const float decayMultiplier = halloween ? 2.5f : 1.0f;
     const float releaseTimeSec = (note.decaySec - sustainTimeSec) * decayMultiplier;
     const double releaseSamples = sampleRate * (double) releaseTimeSec;
     v.envDecay = (releaseSamples > 0.0)
@@ -1215,6 +1350,37 @@ int BLETonesAudioProcessor::getActiveVoiceCount() const
     return count;
 }
 
+//==============================================================================
+// Device aliasing
+//==============================================================================
+
+void BLETonesAudioProcessor::setDeviceAlias (const juce::String& bleId, const juce::String& alias)
+{
+    juce::ScopedLock lock (deviceLock);
+    if (alias.isEmpty())
+        deviceAliases.erase (bleId);
+    else
+        deviceAliases[bleId] = alias;
+}
+
+juce::String BLETonesAudioProcessor::getDeviceAlias (const juce::String& bleId) const
+{
+    juce::ScopedLock lock (deviceLock);
+    auto it = deviceAliases.find (bleId);
+    return (it != deviceAliases.end()) ? it->second : juce::String();
+}
+
+//==============================================================================
+// RSSI to distance estimation
+//==============================================================================
+
+float BLETonesAudioProcessor::rssiToDistance (int rssi, int rssiAt1m, float pathLoss)
+{
+    // Log-distance path loss model: d = 10^((TxPower - RSSI) / (10 * n))
+    if (pathLoss <= 0.0f) pathLoss = 2.0f;
+    return std::pow (10.0f, (float) (rssiAt1m - rssi) / (10.0f * pathLoss));
+}
+
 bool BLETonesAudioProcessor::isHalloweenMode() const
 {
     return *apvts.getRawParameterValue ("halloweenMode") > 0.5f;
@@ -1225,6 +1391,27 @@ void BLETonesAudioProcessor::getStateInformation (juce::MemoryBlock& destData)
 {
     auto state = apvts.copyState();
     std::unique_ptr<juce::XmlElement> xml (state.createXml());
+
+    // Save device aliases
+    {
+        juce::ScopedLock lock (deviceLock);
+        if (! deviceAliases.empty())
+        {
+            auto* aliasesXml = xml->createNewChildElement ("DeviceAliases");
+            for (const auto& pair : deviceAliases)
+            {
+                auto* entry = aliasesXml->createNewChildElement ("Alias");
+                entry->setAttribute ("bleId", pair.first);
+                entry->setAttribute ("name", pair.second);
+            }
+        }
+    }
+
+    // Save calibration values
+    auto* calibXml = xml->createNewChildElement ("Calibration");
+    calibXml->setAttribute ("rssiAt1m", rssiAt1m);
+    calibXml->setAttribute ("pathLoss", (double) pathLossExponent);
+
     copyXmlToBinary (*xml, destData);
 }
 
@@ -1232,7 +1419,39 @@ void BLETonesAudioProcessor::setStateInformation (const void* data, int sizeInBy
 {
     std::unique_ptr<juce::XmlElement> xml (getXmlFromBinary (data, sizeInBytes));
     if (xml && xml->hasTagName (apvts.state.getType()))
+    {
+        // Restore device aliases
+        {
+            juce::ScopedLock lock (deviceLock);
+            deviceAliases.clear();
+            if (auto* aliasesXml = xml->getChildByName ("DeviceAliases"))
+            {
+                for (auto* entry : aliasesXml->getChildIterator())
+                {
+                    if (entry->hasTagName ("Alias"))
+                    {
+                        const auto bleId = entry->getStringAttribute ("bleId");
+                        const auto name  = entry->getStringAttribute ("name");
+                        if (bleId.isNotEmpty() && name.isNotEmpty())
+                            deviceAliases[bleId] = name;
+                    }
+                }
+            }
+        }
+
+        // Restore calibration values
+        if (auto* calibXml = xml->getChildByName ("Calibration"))
+        {
+            rssiAt1m = calibXml->getIntAttribute ("rssiAt1m", -59);
+            pathLossExponent = (float) calibXml->getDoubleAttribute ("pathLoss", 2.0);
+        }
+
+        // Remove non-parameter children before restoring APVTS state
+        xml->deleteAllChildElementsWithTagName ("DeviceAliases");
+        xml->deleteAllChildElementsWithTagName ("Calibration");
+
         apvts.replaceState (juce::ValueTree::fromXml (*xml));
+    }
 }
 
 //==============================================================================

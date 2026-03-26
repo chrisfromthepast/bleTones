@@ -233,11 +233,10 @@ BLETonesAudioProcessorEditor::BLETonesAudioProcessorEditor (BLETonesAudioProcess
     setLookAndFeel (cachedHalloweenMode ? halloweenLookAndFeel.get() : customLookAndFeel.get());
     setSize (900, 700);  // Increased height to accommodate new controls
 
-    // Halloween mode toggle
-    halloweenToggle.setButtonText ("Halloween Mode");
-    addAndMakeVisible (halloweenToggle);
+    // Halloween mode toggle (hidden – activated via secret gesture on title)
     halloweenAttachment = std::make_unique<juce::AudioProcessorValueTreeState::ButtonAttachment> (
         p.apvts, "halloweenMode", halloweenToggle);
+    // Do not addAndMakeVisible – Halloween mode is a secret feature
 
     // Ensemble combo box (curated instrument combinations)
     voiceTypeLabel.setText ("Ensemble", juce::dontSendNotification);
@@ -502,17 +501,33 @@ void BLETonesAudioProcessorEditor::paintBLEScannerPanel (juce::Graphics& g, int 
             const auto& dev = cachedDevices[(size_t) i];
             const float rowY = rowY0 + (float) i * kRowH;
 
-            // Device name
-            g.setColour (kColTextLight);
+            // Show alias if available, otherwise original BLE name
+            const auto alias = audioProcessor.getDeviceAlias (dev.name);
+            const auto displayName = alias.isNotEmpty() ? alias : dev.name;
+
+            g.setColour (alias.isNotEmpty() ? kColTextLight : kColTextLight.withAlpha (0.7f));
             g.setFont (juce::Font (juce::FontOptions (12.0f)));
-            g.drawText (dev.name,
-                        (int) (px + 16), (int) rowY, 150, (int) kRowH,
+            g.drawText (displayName,
+                        (int) (px + 16), (int) rowY, 110, (int) kRowH,
                         juce::Justification::centredLeft, true);
+
+            // Estimated distance
+            const float dist = BLETonesAudioProcessor::rssiToDistance (
+                dev.rssi, audioProcessor.getRssiAt1m(),
+                audioProcessor.getPathLossExponent());
+            const juce::String distStr = (dist < 10.0f)
+                ? juce::String (dist, 1) + "m"
+                : juce::String ((int) dist) + "m";
+            g.setColour (muted);
+            g.setFont (juce::Font (juce::FontOptions (10.0f)));
+            g.drawText (distStr,
+                        (int) (px + 126), (int) rowY, 40, (int) kRowH,
+                        juce::Justification::centredLeft);
 
             // RSSI value (right-aligned, monospace)
             g.setColour (accent);
             g.setFont (juce::Font (juce::FontOptions (juce::Font::getDefaultMonospacedFontName(), 11.5f, 0)));
-            g.drawText (juce::String (dev.rssi) + "  dBm",
+            g.drawText (juce::String (dev.rssi) + " dBm",
                         (int) (px + pw - 90), (int) rowY, 76, (int) kRowH,
                         juce::Justification::centredRight);
         }
@@ -741,7 +756,7 @@ void BLETonesAudioProcessorEditor::paintBottomBar (juce::Graphics& g, int W, int
     g.setFont (juce::Font (juce::FontOptions (11.0f)));
     g.drawFittedText (cachedHalloweenMode 
                           ? "Spirits manifest sounds as they drift through the airwaves..."
-                          : "BLE devices generate sounds based on signal strength changes",
+                          : "Double-click a device to rename it  \xE2\x80\xA2  Distance is estimated from RSSI",
                       0, (int) barY + 10, W, 16, juce::Justification::centred, 1);
 
     g.setColour (muted.withAlpha (0.45f));
@@ -776,11 +791,7 @@ void BLETonesAudioProcessorEditor::resized()
 
     int y = sliderAreaY;
 
-    // Halloween Mode toggle row (centered)
-    halloweenToggle.setBounds (ctrlX + (ctrlW - 180) / 2, y, 180, kRowH);
-    y += kRowH + kGap;
-
-    // Voice Type combo row (new - prominently placed)
+    // Voice Type combo row (prominently placed)
     auto voiceRow = makeRow (y);
     voiceTypeLabel.setBounds (voiceRow.removeFromLeft (kLabelW));
     voiceTypeCombo.setBounds (voiceRow);
@@ -823,6 +834,124 @@ void BLETonesAudioProcessorEditor::resized()
 
     // Regenerate network nodes if window was resized
     generateNetNodes (W, H);
+}
+
+//==============================================================================
+// getTitleClickArea – returns the rectangle where title clicks activate secret
+//==============================================================================
+juce::Rectangle<float> BLETonesAudioProcessorEditor::getTitleClickArea() const
+{
+    const int W = getWidth();
+    const int H = getHeight();
+    const int centerX = kPanelMargin + kLeftPanelW + kPanelMargin;
+    const int centerW = W - centerX - kRightPanelW - kPanelMargin * 2;
+    const float titleY = (float) H * 0.28f;
+    return juce::Rectangle<float> ((float) centerX, titleY - 10.0f,
+                                    (float) centerW, 80.0f);
+}
+
+//==============================================================================
+// getDeviceIndexAtPosition – returns device row index at click point, or -1
+//==============================================================================
+int BLETonesAudioProcessorEditor::getDeviceIndexAtPosition (juce::Point<int> pos) const
+{
+    if (cachedDevices.empty())
+        return -1;
+
+    const float px = (float) kPanelMargin;
+    const float py = (float) kPanelMargin;
+    // Match paintBLEScannerPanel layout
+    const float hdrY = py + 14.0f;
+    const float statusY = hdrY + 28.0f;
+    const float sepY = statusY + 24.0f;
+    const float rowY0 = sepY + 10.0f;
+    constexpr float kRowH = 26.0f;
+
+    // Check if click is within the device list area
+    if (pos.x < (int) px || pos.x > (int) (px + (float) kLeftPanelW))
+        return -1;
+
+    const float relY = (float) pos.y - rowY0;
+    if (relY < 0.0f)
+        return -1;
+
+    const int idx = (int) (relY / kRowH);
+    if (idx >= 0 && idx < (int) cachedDevices.size() && idx < kMaxDeviceRows)
+        return idx;
+
+    return -1;
+}
+
+//==============================================================================
+// mouseDown – secret Halloween activation (5 rapid clicks on title)
+//==============================================================================
+void BLETonesAudioProcessorEditor::mouseDown (const juce::MouseEvent& event)
+{
+    const auto titleArea = getTitleClickArea();
+    if (titleArea.contains (event.position))
+    {
+        const juce::int64 now = juce::Time::currentTimeMillis();
+        if ((now - lastSecretClickMs) > 3000)
+            secretClickCount = 0;
+
+        secretClickCount++;
+        lastSecretClickMs = now;
+
+        if (secretClickCount >= 5)
+        {
+            secretClickCount = 0;
+            // Toggle Halloween mode parameter
+            auto* param = audioProcessor.apvts.getParameter ("halloweenMode");
+            const float current = param->getValue();
+            param->setValueNotifyingHost (current < 0.5f ? 1.0f : 0.0f);
+        }
+    }
+}
+
+//==============================================================================
+// mouseDoubleClick – rename BLE device alias
+//==============================================================================
+void BLETonesAudioProcessorEditor::mouseDoubleClick (const juce::MouseEvent& event)
+{
+    const int devIdx = getDeviceIndexAtPosition (event.getPosition());
+    if (devIdx < 0)
+        return;
+
+    const auto& dev = cachedDevices[(size_t) devIdx];
+    const auto currentAlias = audioProcessor.getDeviceAlias (dev.name);
+
+    auto* editor = new juce::AlertWindow (
+        "Rename Device",
+        "Enter a name for \"" + dev.name + "\":",
+        juce::MessageBoxIconType::NoIcon);
+    editor->addTextEditor ("alias", currentAlias.isNotEmpty() ? currentAlias : dev.name);
+    editor->addButton ("OK", 1, juce::KeyPress (juce::KeyPress::returnKey));
+    editor->addButton ("Clear", 2);
+    editor->addButton ("Cancel", 0, juce::KeyPress (juce::KeyPress::escapeKey));
+
+    const juce::String bleId = dev.name;
+    editor->enterModalState (true,
+        juce::ModalCallbackFunction::create ([this, bleId] (int result)
+        {
+            if (result == 1)
+            {
+                // OK pressed – get the text from the AlertWindow on the stack
+                if (auto* aw = dynamic_cast<juce::AlertWindow*> (
+                        juce::Component::getCurrentlyModalComponent()))
+                {
+                    auto newAlias = aw->getTextEditorContents ("alias").trim();
+                    if (newAlias.isNotEmpty() && newAlias != bleId)
+                        audioProcessor.setDeviceAlias (bleId, newAlias);
+                    else
+                        audioProcessor.setDeviceAlias (bleId, {});
+                }
+            }
+            else if (result == 2)
+            {
+                // Clear alias
+                audioProcessor.setDeviceAlias (bleId, {});
+            }
+        }), true);
 }
 
 //==============================================================================

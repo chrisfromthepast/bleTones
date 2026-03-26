@@ -1374,11 +1374,11 @@ juce::String BLETonesAudioProcessor::getDeviceAlias (const juce::String& bleId) 
 // RSSI to distance estimation
 //==============================================================================
 
-float BLETonesAudioProcessor::rssiToDistance (int rssi, int rssiAt1m, float pathLoss)
+float BLETonesAudioProcessor::rssiToDistance (int rssi, int rssiAt1m, float pathLossExponent)
 {
     // Log-distance path loss model: d = 10^((TxPower - RSSI) / (10 * n))
-    if (pathLoss <= 0.0f) pathLoss = 2.0f;
-    return std::pow (10.0f, (float) (rssiAt1m - rssi) / (10.0f * pathLoss));
+    if (pathLossExponent <= 0.0f) pathLossExponent = 2.0f;
+    return std::pow (10.0f, (float) (rssiAt1m - rssi) / (10.0f * pathLossExponent));
 }
 
 bool BLETonesAudioProcessor::isHalloweenMode() const

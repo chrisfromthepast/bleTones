@@ -719,11 +719,7 @@ void BLETonesAudioProcessorEditor::paintSoundStatsPanel (juce::Graphics& g, int 
     {
         const int ensembleIdx = static_cast<int> (*audioProcessor.apvts.getRawParameterValue ("ensembleType"));
         const auto& names = BLETonesAudioProcessor::getEnsembleNames();
-        // Shorten the display name for stats panel
         juce::String ensembleName = names[juce::jlimit (0, names.size() - 1, ensembleIdx)];
-        // Remove the parenthetical part for compact display
-        if (ensembleName.contains ("("))
-            ensembleName = ensembleName.upToFirstOccurrenceOf (" (", false, true);
         drawStatRow ("Ensemble:", ensembleName);
     }
 }

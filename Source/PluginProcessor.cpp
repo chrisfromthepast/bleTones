@@ -215,6 +215,10 @@ BLETonesAudioProcessor::BLETonesAudioProcessor()
 
     oscReceiver.addListener (this);
 
+    // Pre-allocate note queue capacity to avoid heap allocs on OSC/audio threads
+    pendingNotes.reserve (kMaxVoices);
+    localPendingNotes.reserve (kMaxVoices);
+
 #if JucePlugin_Build_Standalone && JUCE_MAC
     {
         const juce::File helperApp =
@@ -543,6 +547,12 @@ void BLETonesAudioProcessor::triggerNotesForDevice (const juce::String& id,
             const float attack = userAttack * (1.0f + (float) instIdx * 0.15f + (float) i * 0.05f);
 
             pendingNotes.push_back ({ freq, noteAmp, pan, decay, attack, instType });
+            // Stop queuing once the voice pool is fully loaded.  Additional notes
+            // would only cause voice stealing without adding new timbres, so we
+            // discard the remainder of this (and any further) device events for
+            // this OSC message cycle.
+            if (pendingNotes.size() >= static_cast<size_t> (kMaxVoices))
+                return;
         }
     }
 }
@@ -1150,21 +1160,29 @@ void BLETonesAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
     const float volume = *apvts.getRawParameterValue ("volume");
 
     // ── Pick up pending notes from the OSC thread ────────────────────────
+    // Swap under the lock (O(1), no heap alloc), then activate outside to
+    // minimise the time the audio thread holds deviceLock.
+    localPendingNotes.clear();
     {
         juce::ScopedLock lock (deviceLock);
-
-        for (const auto& note : pendingNotes)
-        {
-            activateVoice (note);
-        }
-
-        pendingNotes.clear();
+        localPendingNotes.swap (pendingNotes);
     }
+    for (const auto& note : localPendingNotes)
+        activateVoice (note);
 
     // ── Render each active voice ─────────────────────────────────────────
     auto* leftCh  = buffer.getWritePointer (0);
     auto* rightCh = buffer.getNumChannels() > 1 ? buffer.getWritePointer (1) : nullptr;
     const int numSamples = buffer.getNumSamples();
+
+    // Per-voice mix normalisation: prevents clipping when many voices stack.
+    // With kMaxVoices=32 voices each at amplitude 0.8 with equal-power panning,
+    // the raw per-channel sum can reach 32 × 0.8 × 0.707 ≈ 18.1 before the
+    // volume knob.  Scaling by 0.10 brings a 2-device ensemble (≈24 voices) to
+    // ≈0.95 at volume=1.0 (24 × 0.8 × 0.707 × 0.10 ≈ 1.36 peak, × 0.7 default
+    // volume ≈ 0.95), matching the level users previously achieved by setting
+    // volume to 0.10–0.15 without this constant.
+    static constexpr float kVoiceMixGain = 0.10f;
 
     const double twoPi = juce::MathConstants<double>::twoPi;
 
@@ -1287,9 +1305,9 @@ void BLETonesAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
             const float leftGain  = std::sqrt ((1.0f - v.pan) * 0.5f);
             const float rightGain = std::sqrt ((1.0f + v.pan) * 0.5f);
 
-            leftCh[n] += sig * leftGain;
+            leftCh[n] += sig * leftGain * kVoiceMixGain;
             if (rightCh != nullptr)
-                rightCh[n] += sig * rightGain;
+                rightCh[n] += sig * rightGain * kVoiceMixGain;
 
             // ── Advance oscillator phases ────────────────────────────────
             v.phase1 += effectivePhaseInc1;

@@ -260,7 +260,8 @@ private:
         int    instrumentType;   // InstrumentType enum value
     };
 
-    std::vector<PendingNote> pendingNotes;
+    std::vector<PendingNote> pendingNotes;     // Written by OSC thread, swapped in processBlock
+    std::vector<PendingNote> localPendingNotes; // Audio-thread-only swap buffer (no alloc in block)
 
     /** Minimum ms between triggers for a single device. */
     static constexpr int kMinStrikeMs = 150;

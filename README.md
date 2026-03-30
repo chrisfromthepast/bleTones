@@ -1,9 +1,11 @@
 # bleTones
 
 A generative audio plugin that turns nearby Bluetooth device signal strengths
-into music. Each BLE device becomes a voice: the closer it is, the louder and
-higher its tone. Works as a **VST3 / AU plugin inside any DAW** or as a
-**standalone desktop app**.
+into music. Each BLE device becomes a persistent voice with a consistent pitch
+(derived from its name). **Movement** — changes in signal strength — triggers
+notes: more movement produces louder, richer chords, while proximity determines
+how many notes play and how widely they spread across octaves. Works as a
+**VST3 / AU plugin inside any DAW** or as a **standalone desktop app**.
 
 > **🆕 First time testing?** See [TESTING_GUIDE.md](TESTING_GUIDE.md) for step-by-step
 > instructions on running bleTones and troubleshooting common issues. **No developer
@@ -22,7 +24,7 @@ permission restrictions on DAW hosts:
 │  (standalone app)     │   localhost:9000    │  (inside DAW or standalone)│
 │                       │                    │                          │
 │  • Scans BLE devices  │                    │  • Receives OSC          │
-│  • Own Info.plist     │                    │  • Maps RSSI → frequency │
+│  • Own Info.plist     │                    │  • Detects RSSI movement │
 │  • Full BLE access    │                    │  • Renders audio         │
 └───────────────────────┘                    └──────────────────────────┘
 ```
@@ -203,6 +205,9 @@ The plugin listens on **UDP port 9000** (localhost). Once the helper is
 running and nearby BLE devices are visible, they appear in the plugin UI
 within a second or two.
 
+**Tip:** Double-click a device name in the BLE Scanner panel to give it a
+custom alias. Aliases are saved with the plugin state.
+
 ---
 
 ## Plugin Parameters
@@ -210,13 +215,13 @@ within a second or two.
 | Parameter | Range | Default | Description |
 |-----------|-------|---------|-------------|
 | Volume | 0 – 1 | 0.7 | Master output level |
-| BLE Sensitivity | 0 – 1 | 0.5 | Scales RSSI → amplitude mapping |
+| BLE Sensitivity | 0 – 1 | 0.5 | Movement detection threshold: low = only large RSSI changes trigger notes, high = small changes trigger notes |
 | Root Note | 0 – 127 | 60 (C4) | MIDI root note for scale mapping |
 | Scale / Mode | 10 choices | Minor Pentatonic | Musical scale for pitch mapping |
 | Ensemble | 6 choices | Choral | Curated instrument combinations |
 | Attack Time | 0.01 – 2.0s | 0.4s | How fast notes fade in |
 | Release Time | 0.5 – 12.0s | 6.0s | How long notes ring out |
-| Halloween Mode | on/off | off | Spooky reverb and tremolo effects |
+| Halloween Mode | on/off | off | Secret feature: replaces instruments with 4 spooky timbres and applies Halloween effects. See below. |
 
 ### Sound Design: Ensembles
 
@@ -238,16 +243,40 @@ Each of the **12 distinct instruments** has its own unique:
 - **Filter settings**: Dark/warm to bright/shimmery
 - **Modulation**: Vibrato for flute, tremolo for vibraphone
 
-### RSSI Mapping
+#### 🎃 Halloween Mode
 
-| BLE RSSI | Frequency | Amplitude |
-|----------|-----------|-----------|
-| −30 dBm (very close) | 880 Hz (A5) | 1.0 |
-| −65 dBm (medium) | ~440 Hz (A4) | ~0.5 |
-| −100 dBm (far / barely visible) | 110 Hz (A2) | 0.1 |
+Activated secretly by **clicking the plugin title 5 times within 3 seconds**. When active:
+- All 12 instruments are replaced by 4 spooky timbres cycling across voices:
+  1. **Theremin Wail** – pure sine with wide, slow vibrato and ghostly pulsation
+  2. **Haunted Organ** – dissonant sawtooth pipe organ with tritone stops and heavy sub-bass
+  3. **Ghost Moan** – slow attack filtered noise pad, ethereal and unsettling
+  4. **Death Bell** – inharmonic metallic clang with long decaying shimmer
+- Reverb becomes large and cavernous (room size 0.92, wet 50%)
+- Note decay is extended 2.5× for more sustained, spectral sounds
+- UI theme switches to pumpkin orange and spooky purple
 
-Up to **8 simultaneous voices** are rendered (one per device). Devices not
-seen for more than 10 seconds are automatically removed.
+> **Tip:** For the full effect, also set Scale / Mode to **Halloween Spooky** (diminished/tritone intervals).
+
+### How BLE Signal Maps to Sound
+
+bleTones uses **movement-based triggering**: sound is generated when a device's
+RSSI changes (i.e. it moves closer or further away), not continuously. Each
+device is hashed to a **consistent scale degree** so it always plays the same
+pitch regardless of signal strength.
+
+| Condition | Effect |
+|-----------|--------|
+| RSSI changes (movement) | Triggers notes; larger change = higher amplitude (capped at 0.8) |
+| Very close (RSSI ≥ −48 dBm) | 4 chord notes; notes spread ±1 octave |
+| Close (RSSI −48 to −62 dBm) | 3 chord notes; notes spread upward 1 octave |
+| Medium (RSSI −62 to −79 dBm) | 2 chord notes; no octave spread |
+| Far (RSSI < −79 dBm) | 1 note; no octave spread |
+| Idle for 3 seconds | Soft heartbeat note plays (60% amplitude) |
+| Not seen for 10 seconds | Device removed from display |
+
+Every chord note triggers voices for **all instruments in the active ensemble**
+simultaneously (2–3 instruments layered), creating rich polyphonic textures.
+Up to **32 simultaneous voices** are rendered across all devices and ensembles.
 
 ---
 

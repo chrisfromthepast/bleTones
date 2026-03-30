@@ -221,6 +221,10 @@ private:
     juce::OSCReceiver oscReceiver;
     static constexpr int kOSCPort = 9000;
 
+#if JUCE_MAC
+    juce::ChildProcess helperProcess;
+#endif
+
     mutable juce::CriticalSection deviceLock;
     std::vector<BLEDevice>        devices;
 

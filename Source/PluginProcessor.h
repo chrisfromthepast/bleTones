@@ -89,6 +89,31 @@ public:
     static constexpr int kMaxRSSI =  -30; // dBm – very close device
 
     //==========================================================================
+    // ── Device aliasing (user-assigned names) ────────────────────────────────
+
+    /** Set a user-friendly alias for a BLE device identified by its original name. */
+    void setDeviceAlias (const juce::String& bleId, const juce::String& alias);
+
+    /** Get the alias for a device, or empty string if none set. */
+    juce::String getDeviceAlias (const juce::String& bleId) const;
+
+    //==========================================================================
+    // ── RSSI to distance estimation ──────────────────────────────────────────
+
+    /** Estimate distance in meters from RSSI using log-distance path loss model.
+     *  Formula: d = 10^((rssiAt1m - rssi) / (10 * pathLossExponent))
+     */
+    static float rssiToDistance (int rssi, int rssiAt1m, float pathLossExponent);
+
+    /** Reference RSSI at 1 meter (calibration value, typically -59 dBm). */
+    int getRssiAt1m() const { return rssiAt1m; }
+    void setRssiAt1m (int value) { rssiAt1m = juce::jlimit (-90, -20, value); }
+
+    /** Path loss exponent (2.0 = free space, 2.5-3.5 = typical indoor). */
+    float getPathLossExponent() const { return pathLossExponent; }
+    void setPathLossExponent (float value) { pathLossExponent = juce::jlimit (1.5f, 5.0f, value); }
+
+    //==========================================================================
     // ── Scale definitions (matching the original Electron app) ───────────────
 
     /** All available musical scales / modes. */
@@ -183,6 +208,14 @@ private:
 
     /** Tracks the last Halloween mode state to detect changes. */
     bool lastHalloweenMode { false };
+
+    //==========================================================================
+    // ── Device aliases (user-assigned names, protected by deviceLock) ────────
+    std::map<juce::String, juce::String> deviceAliases;
+
+    // ── RSSI-to-distance calibration ─────────────────────────────────────────
+    int   rssiAt1m         { -59 };   // Reference RSSI at 1 meter
+    float pathLossExponent { 2.0f };  // Environment path loss exponent
 
     //==========================================================================
     juce::OSCReceiver oscReceiver;

@@ -11,6 +11,8 @@ public:
 
     void paint (juce::Graphics&) override;
     void resized() override;
+    void mouseDown (const juce::MouseEvent&) override;
+    void mouseDoubleClick (const juce::MouseEvent&) override;
 
 private:
     void timerCallback() override;
@@ -44,7 +46,7 @@ private:
     juce::Label     keyLabel;
     juce::ComboBox  voiceTypeCombo;      // Voice type selection
     juce::Label     voiceTypeLabel;
-    juce::ToggleButton halloweenToggle;
+    juce::ToggleButton halloweenToggle;  // Hidden – toggled via secret gesture
 
     // Parameter attachments
     juce::AudioProcessorValueTreeState::SliderAttachment   volumeAttachment;
@@ -70,6 +72,15 @@ private:
 
     // Helper to update look-and-feel when Halloween mode changes
     void updateLookAndFeelForMode (bool halloween);
+
+    // ── Secret Halloween activation (5 rapid title clicks) ───────────────────
+    int    secretClickCount { 0 };
+    juce::int64 lastSecretClickMs { 0 };
+    juce::Rectangle<float> getTitleClickArea() const;
+
+    // ── Device rename helper ─────────────────────────────────────────────────
+    /** Returns the index of the device at a given click position, or -1. */
+    int getDeviceIndexAtPosition (juce::Point<int> pos) const;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (BLETonesAudioProcessorEditor)
 };

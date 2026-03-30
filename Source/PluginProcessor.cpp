@@ -219,7 +219,7 @@ BLETonesAudioProcessor::BLETonesAudioProcessor()
     pendingNotes.reserve (kMaxVoices);
     localPendingNotes.reserve (kMaxVoices);
 
-#if JucePlugin_Build_Standalone && JUCE_MAC
+#if JUCE_MAC
     {
         const juce::File helperApp =
             juce::File::getSpecialLocation (juce::File::currentExecutableFile)
@@ -235,8 +235,7 @@ BLETonesAudioProcessor::BLETonesAudioProcessor()
             args.add ("-g");
             args.add (helperApp.getFullPathName());
 
-            juce::ChildProcess launcher;
-            if (! launcher.start (args))
+            if (! helperProcess.start (args))
                 DBG ("bleTones: failed to launch helper at " << helperApp.getFullPathName());
         }
         else

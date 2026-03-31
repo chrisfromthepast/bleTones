@@ -85,8 +85,9 @@ public:
     /** Returns the number of currently active voices (for display). */
     int getActiveVoiceCount() const;
 
-    static constexpr int kMinRSSI = -100; // dBm – barely detectable
-    static constexpr int kMaxRSSI =  -30; // dBm – very close device
+    static constexpr int kMinRSSI    = -100; // dBm – barely detectable
+    static constexpr int kMaxRSSI    =  -30; // dBm – very close device
+    static constexpr int kMaxDevices =   16; // Maximum tracked BLE devices
 
     //==========================================================================
     // ── Device aliasing (user-assigned names) ────────────────────────────────
@@ -96,6 +97,9 @@ public:
 
     /** Get the alias for a device, or empty string if none set. */
     juce::String getDeviceAlias (const juce::String& bleId) const;
+
+    /** Get all device aliases in a single lock acquisition (for efficient UI caching). */
+    std::map<juce::String, juce::String> getAllDeviceAliases() const;
 
     //==========================================================================
     // ── RSSI to distance estimation ──────────────────────────────────────────
@@ -268,7 +272,7 @@ private:
     std::vector<PendingNote> localPendingNotes; // Audio-thread-only swap buffer (no alloc in block)
 
     /** Minimum ms between triggers for a single device. */
-    static constexpr int kMinStrikeMs = 150;
+    static constexpr int kMinStrikeMs = 300;
 
     /** Generate chord notes for a device based on proximity and movement. */
     void triggerNotesForDevice (const juce::String& id,

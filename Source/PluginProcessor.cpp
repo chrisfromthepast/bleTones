@@ -411,6 +411,18 @@ void BLETonesAudioProcessor::oscMessageReceived (const juce::OSCMessage& msg)
                 [now] (const BLEDevice& d) { return (now - d.lastSeenMs) > 10'000; }),
             devices.end());
 
+        // Cap device count to prevent UI slowdown and voice pool flooding.
+        // Keep the strongest-signal devices (most relevant for nearby interaction).
+        while (devices.size() > static_cast<size_t> (kMaxDevices))
+        {
+            auto weakest = std::min_element (devices.begin(), devices.end(),
+                [] (const BLEDevice& a, const BLEDevice& b) { return a.rssi < b.rssi; });
+            if (weakest != devices.end())
+                devices.erase (weakest);
+            else
+                break;
+        }
+
         // ── Movement detection ───────────────────────────────────────────────
         // The sensitivity parameter controls the movement threshold:
         //   sensitivity 0.0 → threshold 0.30 (very insensitive)
@@ -1385,6 +1397,12 @@ juce::String BLETonesAudioProcessor::getDeviceAlias (const juce::String& bleId) 
     juce::ScopedLock lock (deviceLock);
     auto it = deviceAliases.find (bleId);
     return (it != deviceAliases.end()) ? it->second : juce::String();
+}
+
+std::map<juce::String, juce::String> BLETonesAudioProcessor::getAllDeviceAliases() const
+{
+    juce::ScopedLock lock (deviceLock);
+    return deviceAliases;
 }
 
 //==============================================================================

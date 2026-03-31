@@ -413,14 +413,12 @@ void BLETonesAudioProcessor::oscMessageReceived (const juce::OSCMessage& msg)
 
         // Cap device count to prevent UI slowdown and voice pool flooding.
         // Keep the strongest-signal devices (most relevant for nearby interaction).
-        while (devices.size() > static_cast<size_t> (kMaxDevices))
+        if (devices.size() > static_cast<size_t> (kMaxDevices))
         {
-            auto weakest = std::min_element (devices.begin(), devices.end(),
-                [] (const BLEDevice& a, const BLEDevice& b) { return a.rssi < b.rssi; });
-            if (weakest != devices.end())
-                devices.erase (weakest);
-            else
-                break;
+            // Sort by RSSI descending so strongest devices are first
+            std::sort (devices.begin(), devices.end(),
+                [] (const BLEDevice& a, const BLEDevice& b) { return a.rssi > b.rssi; });
+            devices.resize (static_cast<size_t> (kMaxDevices));
         }
 
         // ── Movement detection ───────────────────────────────────────────────

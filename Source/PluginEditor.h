@@ -59,6 +59,7 @@ private:
 
     // Cached device snapshot (refreshed at 15 Hz)
     std::vector<BLEDevice> cachedDevices;
+    std::map<juce::String, juce::String> cachedAliases;
     int cachedActiveVoices { 0 };
     bool cachedHalloweenMode { false };
 

@@ -501,8 +501,13 @@ void BLETonesAudioProcessorEditor::paintBLEScannerPanel (juce::Graphics& g, int 
             const auto& dev = cachedDevices[(size_t) i];
             const float rowY = rowY0 + (float) i * kRowH;
 
-            // Show alias if available, otherwise original BLE name
-            const auto alias = audioProcessor.getDeviceAlias (dev.name);
+            // Show alias if available (from cached map, no lock needed)
+            juce::String alias;
+            {
+                auto ait = cachedAliases.find (dev.name);
+                if (ait != cachedAliases.end())
+                    alias = ait->second;
+            }
             const auto displayName = alias.isNotEmpty() ? alias : dev.name;
 
             g.setColour (alias.isNotEmpty() ? kColTextLight : kColTextLight.withAlpha (0.7f));
@@ -930,21 +935,17 @@ void BLETonesAudioProcessorEditor::mouseDoubleClick (const juce::MouseEvent& eve
     editor->addButton ("Cancel", 0, juce::KeyPress (juce::KeyPress::escapeKey));
 
     const juce::String bleId = dev.name;
+    juce::Component::SafePointer<juce::AlertWindow> safeAw (editor);
     editor->enterModalState (true,
-        juce::ModalCallbackFunction::create ([this, bleId] (int result)
+        juce::ModalCallbackFunction::create ([this, bleId, safeAw] (int result)
         {
-            if (result == 1)
+            if (result == 1 && safeAw != nullptr)
             {
-                // OK pressed – get the text from the AlertWindow on the stack
-                if (auto* aw = dynamic_cast<juce::AlertWindow*> (
-                        juce::Component::getCurrentlyModalComponent()))
-                {
-                    auto newAlias = aw->getTextEditorContents ("alias").trim();
-                    if (newAlias.isNotEmpty() && newAlias != bleId)
-                        audioProcessor.setDeviceAlias (bleId, newAlias);
-                    else
-                        audioProcessor.setDeviceAlias (bleId, {});
-                }
+                auto newAlias = safeAw->getTextEditorContents ("alias").trim();
+                if (newAlias.isNotEmpty() && newAlias != bleId)
+                    audioProcessor.setDeviceAlias (bleId, newAlias);
+                else
+                    audioProcessor.setDeviceAlias (bleId, {});
             }
             else if (result == 2)
             {
@@ -961,6 +962,7 @@ void BLETonesAudioProcessorEditor::timerCallback()
 {
     cachedDevices      = audioProcessor.getDevicesCopy();
     cachedActiveVoices = audioProcessor.getActiveVoiceCount();
+    cachedAliases      = audioProcessor.getAllDeviceAliases();
 
     // Check if Halloween mode changed
     const bool halloween = audioProcessor.isHalloweenMode();

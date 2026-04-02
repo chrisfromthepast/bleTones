@@ -85,6 +85,23 @@ public:
     /** Returns the number of currently active voices (for display). */
     int getActiveVoiceCount() const;
 
+    //==========================================================================
+    // ── Diagnostic logging ───────────────────────────────────────────────────
+
+    /** Write a timestamped diagnostic message to the log file (message thread). */
+    void logDiag (const juce::String& message) const;
+
+    /** Counters sampled from the audio/OSC threads, read on the message thread. */
+    struct DiagnosticSnapshot
+    {
+        int oscMessagesReceived { 0 };
+        int processBlocksCalled { 0 };
+        int voicesActivated     { 0 };
+    };
+
+    /** Return the latest atomic diagnostic counters (lock-free, message thread). */
+    DiagnosticSnapshot getDiagnosticSnapshot() const noexcept;
+
     static constexpr int kMinRSSI    = -100; // dBm – barely detectable
     static constexpr int kMaxRSSI    =  -30; // dBm – very close device
     static constexpr int kMaxDevices =   16; // Maximum tracked BLE devices
@@ -212,6 +229,21 @@ private:
 
     /** Tracks the last Halloween mode state to detect changes. */
     bool lastHalloweenMode { false };
+
+    //==========================================================================
+    // ── Diagnostic logging ───────────────────────────────────────────────────
+
+    /** File logger instance (message-thread use only for writes). */
+    mutable std::unique_ptr<juce::FileLogger> fileLogger;
+
+    /** Incremented in oscMessageReceived (message loop thread). */
+    std::atomic<int> diagOscCount   { 0 };
+
+    /** Incremented each processBlock call (audio thread). */
+    std::atomic<int> diagBlockCount { 0 };
+
+    /** Incremented each time a voice is activated (audio thread). */
+    std::atomic<int> diagVoiceCount { 0 };
 
     //==========================================================================
     // ── Device aliases (user-assigned names, protected by deviceLock) ────────

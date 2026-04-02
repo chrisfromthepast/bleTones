@@ -208,9 +208,28 @@ BLETonesAudioProcessor::BLETonesAudioProcessor()
                         .withOutput ("Output", juce::AudioChannelSet::stereo(), true)),
       apvts (*this, nullptr, "Parameters", createParameterLayout())
 {
+    // ── Diagnostic file logger ──────────────────────────────────────────────
+    // Uses the startup timestamp to create a unique filename, preventing
+    // conflicts when multiple plugin instances run in the same host.
+    // Safe to call from the message thread; audio thread only updates atomics.
+    {
+        const auto sessionId = juce::String (juce::Time::currentTimeMillis());
+        const auto logFile = juce::File::getSpecialLocation (juce::File::userDocumentsDirectory)
+                                 .getChildFile ("bleTones_diag_" + sessionId + ".log");
+        fileLogger = std::make_unique<juce::FileLogger> (logFile,
+                                                          "bleTones diagnostic log",
+                                                          1 << 20 /* 1 MB */);
+        logDiag ("[INIT] BLETonesAudioProcessor created");
+    }
+
     if (! oscReceiver.connect (kOSCPort))
     {
         DBG ("bleTones: failed to bind OSC receiver on port " << kOSCPort);
+        logDiag ("[ERROR] OSC receiver failed to bind on port " + juce::String (kOSCPort));
+    }
+    else
+    {
+        logDiag ("[INIT] OSC receiver bound on port " + juce::String (kOSCPort));
     }
 
     oscReceiver.addListener (this);
@@ -236,11 +255,19 @@ BLETonesAudioProcessor::BLETonesAudioProcessor()
             args.add (helperApp.getFullPathName());
 
             if (! helperProcess.start (args))
+            {
                 DBG ("bleTones: failed to launch helper at " << helperApp.getFullPathName());
+                logDiag ("[ERROR] Helper process failed to start: " + helperApp.getFullPathName());
+            }
+            else
+            {
+                logDiag ("[INIT] BLE helper process launched: " + helperApp.getFullPathName());
+            }
         }
         else
         {
             DBG ("bleTones: helper not found at " << helperApp.getFullPathName());
+            logDiag ("[WARN] BLE helper not found at: " + helperApp.getFullPathName());
         }
     }
 #endif
@@ -248,6 +275,10 @@ BLETonesAudioProcessor::BLETonesAudioProcessor()
 
 BLETonesAudioProcessor::~BLETonesAudioProcessor()
 {
+    logDiag ("[SHUTDOWN] BLETonesAudioProcessor destroyed – OSC msgs=" +
+             juce::String (diagOscCount.load()) +
+             " blocks=" + juce::String (diagBlockCount.load()) +
+             " voices=" + juce::String (diagVoiceCount.load()));
     oscReceiver.removeListener (this);
     oscReceiver.disconnect();
 }
@@ -256,8 +287,34 @@ BLETonesAudioProcessor::~BLETonesAudioProcessor()
 const juce::String BLETonesAudioProcessor::getName() const { return "bleTones"; }
 
 //==============================================================================
-void BLETonesAudioProcessor::prepareToPlay (double sr, int /*samplesPerBlock*/)
+// Diagnostic helpers
+//==============================================================================
+
+void BLETonesAudioProcessor::logDiag (const juce::String& message) const
 {
+    if (fileLogger)
+        fileLogger->logMessage (message);
+}
+
+BLETonesAudioProcessor::DiagnosticSnapshot
+    BLETonesAudioProcessor::getDiagnosticSnapshot() const noexcept
+{
+    // memory_order_relaxed is intentional: these counters are independent
+    // and used only for diagnostics, so a perfectly atomic snapshot across
+    // all three is not required.  The values may be off by one if updates
+    // race with this read, which is acceptable for logging purposes.
+    DiagnosticSnapshot snap;
+    snap.oscMessagesReceived = diagOscCount.load (std::memory_order_relaxed);
+    snap.processBlocksCalled = diagBlockCount.load (std::memory_order_relaxed);
+    snap.voicesActivated     = diagVoiceCount.load (std::memory_order_relaxed);
+    return snap;
+}
+
+//==============================================================================
+void BLETonesAudioProcessor::prepareToPlay (double sr, int samplesPerBlock)
+{
+    logDiag ("[AUDIO] prepareToPlay: sampleRate=" + juce::String (sr, 1) +
+             " blockSize=" + juce::String (samplesPerBlock));
     sampleRate = sr;
 
     for (auto& v : voices)
@@ -355,6 +412,8 @@ void BLETonesAudioProcessor::oscMessageReceived (const juce::OSCMessage& msg)
     if (msg.size() < 2 || ! (msg[0].isString() && msg[1].isInt32()))
         return;
 
+    diagOscCount.fetch_add (1, std::memory_order_relaxed);
+
     const juce::String name = msg[0].getString();
     const int          rssi = msg[1].getInt32();
     const juce::int64  now  = juce::Time::currentTimeMillis();
@@ -362,7 +421,14 @@ void BLETonesAudioProcessor::oscMessageReceived (const juce::OSCMessage& msg)
     const float normRssi = normalizeRSSI (rssi);
 
     {
+        // Measure how long we wait for the device lock (should be near-zero;
+        // a spike here means the audio thread is holding the lock for too long).
+        const double lockWaitStart = juce::Time::getMillisecondCounterHiRes();
         juce::ScopedLock lock (deviceLock);
+        const double lockWaitMs = juce::Time::getMillisecondCounterHiRes() - lockWaitStart;
+        if (lockWaitMs > 5.0)
+            logDiag ("[THREAD] OSC deviceLock wait=" + juce::String (lockWaitMs, 2)
+                     + "ms – possible contention");
 
         // ── Update or insert device ──────────────────────────────────────────
         bool found = false;
@@ -400,6 +466,7 @@ void BLETonesAudioProcessor::oscMessageReceived (const juce::OSCMessage& msg)
                 ds.baseDegree = hashName (name) % (scaleLen * kBaseDegreeOctaves);
                 deviceStateMap[name] = ds;
                 isNewDevice = true;
+                logDiag ("[BLE] New device: \"" + name + "\"  RSSI=" + juce::String (rssi) + "dBm");
             }
             // Use a synthetic delta for new devices to trigger an intro note
             delta = kInitialDelta;
@@ -572,6 +639,8 @@ void BLETonesAudioProcessor::triggerNotesForDevice (const juce::String& id,
 
 void BLETonesAudioProcessor::activateVoice (const PendingNote& note)
 {
+    diagVoiceCount.fetch_add (1, std::memory_order_relaxed);
+
     // Find a free voice, or steal the quietest one
     size_t bestIdx  = 0;
     float quietest  = 2.0f;
@@ -1156,6 +1225,7 @@ void BLETonesAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
                                             juce::MidiBuffer&         midiMessages)
 {
     juce::ScopedNoDenormals noDenormals;
+    diagBlockCount.fetch_add (1, std::memory_order_relaxed);
 
     // Check if Halloween mode changed and update reverb if needed
     const bool halloween = *apvts.getRawParameterValue ("halloweenMode") > 0.5f;

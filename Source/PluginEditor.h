@@ -83,5 +83,17 @@ private:
     /** Returns the index of the device at a given click position, or -1. */
     int getDeviceIndexAtPosition (juce::Point<int> pos) const;
 
+    // ── Diagnostic / performance-monitoring state ─────────────────────────────
+    /** Wall-clock time (hi-res ms) when the previous timerCallback started. */
+    double  prevTimerCallbackMs    { 0.0 };
+    /** Number of timerCallback invocations since construction. */
+    int     timerCallbackCount     { 0 };
+    /** How many timerCallbacks took longer than kSlowCallbackThresholdMs. */
+    int     slowTimerCount         { 0 };
+    /** How many paint() calls took longer than kSlowPaintThresholdMs. */
+    int     slowPaintCount         { 0 };
+    /** Cached diagnostic snapshot used to detect changes between timer ticks. */
+    BLETonesAudioProcessor::DiagnosticSnapshot lastDiagSnapshot;
+
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (BLETonesAudioProcessorEditor)
 };

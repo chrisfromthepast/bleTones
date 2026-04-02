@@ -228,6 +228,8 @@ BLETonesAudioProcessorEditor::BLETonesAudioProcessorEditor (BLETonesAudioProcess
       volumeAttachment      (p.apvts, "volume",      volumeSlider),
       sensitivityAttachment (p.apvts, "sensitivity", sensitivitySlider)
 {
+    p.logDiag ("[GUI] BLETonesAudioProcessorEditor constructed");
+
     // Check initial Halloween mode state
     cachedHalloweenMode = p.isHalloweenMode();
     setLookAndFeel (cachedHalloweenMode ? halloweenLookAndFeel.get() : customLookAndFeel.get());
@@ -327,12 +329,19 @@ BLETonesAudioProcessorEditor::BLETonesAudioProcessorEditor (BLETonesAudioProcess
     addAndMakeVisible (keyCombo);
 
     generateNetNodes (900, 700);
+    lastDiagSnapshot = audioProcessor.getDiagnosticSnapshot();
+    prevTimerCallbackMs = juce::Time::getMillisecondCounterHiRes();
     startTimerHz (15);
+    audioProcessor.logDiag ("[GUI] Timer started at 15 Hz");
 }
 
 BLETonesAudioProcessorEditor::~BLETonesAudioProcessorEditor()
 {
     stopTimer();
+    audioProcessor.logDiag ("[GUI] BLETonesAudioProcessorEditor destroyed, timerCallbacks="
+                             + juce::String (timerCallbackCount)
+                             + " slowTimer=" + juce::String (slowTimerCount)
+                             + " slowPaint=" + juce::String (slowPaintCount));
     setLookAndFeel (nullptr);
 }
 
@@ -344,11 +353,19 @@ void BLETonesAudioProcessorEditor::updateLookAndFeelForMode (bool halloween)
     setLookAndFeel (halloween ? halloweenLookAndFeel.get() : customLookAndFeel.get());
 }
 
+// Thresholds for flagging slow execution (milliseconds)
+static constexpr double kSlowCallbackThresholdMs  = 50.0;   // > 50 ms = slow timer callback
+static constexpr double kSlowPaintThresholdMs     = 30.0;   // > 30 ms = slow paint
+// At 15 Hz the expected interval between callbacks is ~66.7 ms.
+// A gap more than 3× longer suggests the message thread was blocked.
+static constexpr double kMaxExpectedCallbackGapMs = 200.0;  // > 200 ms = stalled message thread
+
 //==============================================================================
 // paint
 //==============================================================================
 void BLETonesAudioProcessorEditor::paint (juce::Graphics& g)
 {
+    const double paintStart = juce::Time::getMillisecondCounterHiRes();
     const int W = getWidth();
     const int H = getHeight();
 
@@ -358,6 +375,16 @@ void BLETonesAudioProcessorEditor::paint (juce::Graphics& g)
     paintCenterContent   (g, W, H);
     paintSoundStatsPanel (g, W, H);
     paintBottomBar       (g, W, H);
+
+    const double paintDurationMs = juce::Time::getMillisecondCounterHiRes() - paintStart;
+    if (paintDurationMs > kSlowPaintThresholdMs)
+    {
+        ++slowPaintCount;
+        audioProcessor.logDiag ("[GUI][PERF] Slow paint(): "
+                                 + juce::String (paintDurationMs, 1)
+                                 + "ms (threshold=" + juce::String (kSlowPaintThresholdMs, 0)
+                                 + "ms), count=" + juce::String (slowPaintCount));
+    }
 }
 
 //==============================================================================
@@ -777,6 +804,7 @@ void BLETonesAudioProcessorEditor::resized()
 {
     const int W = getWidth();
     const int H = getHeight();
+    audioProcessor.logDiag ("[GUI] resized: " + juce::String (W) + "x" + juce::String (H));
 
     // Sliders and combos live in the center column, below the title area
     const int centerX = kPanelMargin + kLeftPanelW + kPanelMargin;
@@ -892,6 +920,9 @@ int BLETonesAudioProcessorEditor::getDeviceIndexAtPosition (juce::Point<int> pos
 //==============================================================================
 void BLETonesAudioProcessorEditor::mouseDown (const juce::MouseEvent& event)
 {
+    audioProcessor.logDiag ("[GUI] mouseDown at ("
+                             + juce::String (event.x) + ","
+                             + juce::String (event.y) + ")");
     const auto titleArea = getTitleClickArea();
     if (titleArea.contains (event.position))
     {
@@ -909,6 +940,7 @@ void BLETonesAudioProcessorEditor::mouseDown (const juce::MouseEvent& event)
             auto* param = audioProcessor.apvts.getParameter ("halloweenMode");
             const float current = param->getValue();
             param->setValueNotifyingHost (current < 0.5f ? 1.0f : 0.0f);
+            audioProcessor.logDiag ("[GUI] Secret Halloween gesture triggered");
         }
     }
 }
@@ -923,6 +955,7 @@ void BLETonesAudioProcessorEditor::mouseDoubleClick (const juce::MouseEvent& eve
         return;
 
     const auto& dev = cachedDevices[(size_t) devIdx];
+    audioProcessor.logDiag ("[GUI] Double-click rename on device \"" + dev.name + "\"");
     const auto currentAlias = audioProcessor.getDeviceAlias (dev.name);
 
     auto* editor = new juce::AlertWindow (
@@ -958,8 +991,24 @@ void BLETonesAudioProcessorEditor::mouseDoubleClick (const juce::MouseEvent& eve
 //==============================================================================
 // timerCallback  (15 Hz)
 //==============================================================================
+
 void BLETonesAudioProcessorEditor::timerCallback()
 {
+    const double callbackStart = juce::Time::getMillisecondCounterHiRes();
+
+    // Measure the real interval since the last callback (should be ~67 ms at 15 Hz).
+    // A value >> 67 ms indicates the message thread was blocked.
+    const double intervalMs = callbackStart - prevTimerCallbackMs;
+    prevTimerCallbackMs = callbackStart;
+    ++timerCallbackCount;
+
+    if (timerCallbackCount > 1 && intervalMs > kMaxExpectedCallbackGapMs)
+    {
+        audioProcessor.logDiag ("[GUI][WARN] Long gap between timer callbacks: "
+                                 + juce::String (intervalMs, 1)
+                                 + "ms (expected ~67ms) – message thread may be blocked");
+    }
+
     cachedDevices      = audioProcessor.getDevicesCopy();
     cachedActiveVoices = audioProcessor.getActiveVoiceCount();
     cachedAliases      = audioProcessor.getAllDeviceAliases();
@@ -970,6 +1019,8 @@ void BLETonesAudioProcessorEditor::timerCallback()
     {
         cachedHalloweenMode = halloween;
         updateLookAndFeelForMode (halloween);
+        audioProcessor.logDiag (juce::String ("[GUI] Halloween mode ") +
+                                 (halloween ? "enabled" : "disabled"));
     }
 
     // Advance animation phase (~3-second cycle at 15 Hz)
@@ -978,4 +1029,36 @@ void BLETonesAudioProcessorEditor::timerCallback()
         animPhase -= juce::MathConstants<float>::twoPi;
 
     repaint();
+
+    // ── Periodic audio-thread diagnostics (every ~5 s) ────────────────────
+    // At 15 Hz: 75 callbacks = 75 / 15.0 = 5.0 seconds.
+    // Update kDiagIntervalCallbacks if the timer frequency changes.
+    static constexpr int kDiagIntervalCallbacks = 75;
+    if ((timerCallbackCount % kDiagIntervalCallbacks) == 0)
+    {
+        const auto snap = audioProcessor.getDiagnosticSnapshot();
+        const int deltaOsc    = snap.oscMessagesReceived - lastDiagSnapshot.oscMessagesReceived;
+        const int deltaBlocks = snap.processBlocksCalled - lastDiagSnapshot.processBlocksCalled;
+        const int deltaVoices = snap.voicesActivated     - lastDiagSnapshot.voicesActivated;
+        lastDiagSnapshot = snap;
+
+        audioProcessor.logDiag ("[DIAG] 5s window: OSC+" + juce::String (deltaOsc)
+                                 + " blocks+" + juce::String (deltaBlocks)
+                                 + " voices+" + juce::String (deltaVoices)
+                                 + " activeVoices=" + juce::String (cachedActiveVoices)
+                                 + " devices=" + juce::String ((int) cachedDevices.size())
+                                 + " slowTimer=" + juce::String (slowTimerCount)
+                                 + " slowPaint=" + juce::String (slowPaintCount));
+    }
+
+    // Measure total callback duration
+    const double callbackDurationMs = juce::Time::getMillisecondCounterHiRes() - callbackStart;
+    if (callbackDurationMs > kSlowCallbackThresholdMs)
+    {
+        ++slowTimerCount;
+        audioProcessor.logDiag ("[GUI][PERF] Slow timerCallback: "
+                                 + juce::String (callbackDurationMs, 1)
+                                 + "ms (threshold=" + juce::String (kSlowCallbackThresholdMs, 0)
+                                 + "ms), count=" + juce::String (slowTimerCount));
+    }
 }

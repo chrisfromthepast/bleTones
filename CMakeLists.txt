@@ -28,6 +28,7 @@ juce_add_plugin(bleTones
     NEEDS_MIDI_OUTPUT           TRUE
     EDITOR_WANTS_KEYBOARD_FOCUS FALSE
     COPY_PLUGIN_AFTER_BUILD     FALSE
+    ICON_BIG                    "${CMAKE_CURRENT_SOURCE_DIR}/Assets/AppIcon.png"
 )
 
 target_sources(bleTones PRIVATE
